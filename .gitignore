@@ -1,0 +1,22 @@
+# This is a gitignore file. Any items in this file will be "ignored" by git.
+# Individual items can be placed here, or entire directories. All paths are
+# relative to the "root" directory of the project. That is, this file is
+# located at /.gitignore
+
+# IntelliJ items; the .idea directory and all project files.
+.idea/
+*.iml
+
+# Generated client files, including dependencies (node_modules), bundled
+# files (generated in dist)
+node_modules/
+dist/
+
+# package-lock.json. It is recommended that this be checked in, but does not
+# create very nice commits in practice.
+package-lock.json
+
+# Rust build files
+src/js/wasm/
+src/rust/target/
+src/rust/Cargo.lock

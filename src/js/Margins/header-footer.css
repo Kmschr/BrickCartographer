@@ -1,0 +1,77 @@
+/* Font Styles */
+
+a:hover {
+    cursor: pointer;
+}
+
+.tco-text {
+    font-family: 'prox-light', sans-serif;
+    font-size: 16px;
+    color: white;
+}
+
+.tco-text-upper {
+    font-family: 'prox-light', sans-serif;
+    font-size: 28px;
+    letter-spacing: .11em;
+    line-height: 1.1em;
+    text-transform: uppercase;
+    color: white;
+}
+
+.tco-logo {
+    width: 90px;
+    height: auto;
+    margin-right: 25px;
+}
+
+/* Centering Classes */
+
+.full-width {
+    width: 100%;
+
+    background-color: #1E4D2B;
+    color: #FFFFFF;
+
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.vertical-center {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+/* Header Styles */
+
+.header {
+    height: 12%;
+    min-height: 120px;
+
+    margin-bottom: 25px;
+}
+
+/* Footer Styles */
+
+.footer {
+    height: 6%;
+    min-height: 100px;
+
+    margin-top: 25px;
+}
+
+.centered {
+    margin: 0 auto;
+    text-align: center;
+}
+
+/* Screen Width Intervals (Aligned with Bootstrap) */
+
+@media only screen and (min-width: 576px) {
+
+    .centered {
+        margin: 0;
+        text-align: unset;
+    }
+}

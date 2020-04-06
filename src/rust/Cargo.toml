@@ -1,0 +1,29 @@
+[package]
+name = "brick_cartographer"
+version = "0.1.0"
+authors = ["Kmschr <Kmschr@gmail.com>"]
+description = "Website/WASM to map brickadia saves"
+license = "GNU"
+
+[lib]
+path = "./lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+brs = { git = "https://github.com/brickadia/brs" }
+wasm-bindgen = "0.2.60"
+js-sys = "0.3.37"
+chrono = { version = "0.4.9", features = ["wasmbind"] }
+
+[dependencies.web-sys]
+version = "0.3.4"
+features = [
+  'Document',
+  'Element',
+  'HtmlCanvasElement',
+  'WebGlBuffer',
+  'WebGlRenderingContext',
+  'WebGlProgram',
+  'WebGlShader',
+  'Window',
+]
