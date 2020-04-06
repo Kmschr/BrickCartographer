@@ -4,7 +4,7 @@ module.exports = {
   mode: 'production',
   entry: [
     'babel-polyfill',
-    './src/js/entry.jsx'
+    './js/entry.jsx'
   ],
   output: {
     path: path.join(__dirname, './dist/public/'),
@@ -20,7 +20,7 @@ module.exports = {
             plugins: ['babel-plugin-syntax-dynamic-import']
           }
         }],
-        include: path.join(__dirname, 'src/js'),
+        include: path.join(__dirname, 'js'),
       },
       { test: /\.css$/, use: ['style-loader', 'css-loader'] },
       { test: /\.(png|jpg|gif|svg)$/, use: {

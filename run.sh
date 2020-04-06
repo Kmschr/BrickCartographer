@@ -1,4 +1,4 @@
 #!/bin/bash
 
-wasm-pack build src/rust --out-dir ../js/wasm
+wasm-pack build
 npm run dev

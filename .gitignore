@@ -17,6 +17,6 @@ dist/
 package-lock.json
 
 # Rust build files
-src/js/wasm/
-src/rust/target/
-src/rust/Cargo.lock
+pkg/
+target/
+Cargo.lock

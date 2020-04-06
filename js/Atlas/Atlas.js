@@ -11,7 +11,7 @@ const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
 const MAP_ZOOM_MIN = -5;
 
-const wasm = import('../wasm');
+const wasm = import('../../pkg');
 
 export default class Atlas extends Component {
 
