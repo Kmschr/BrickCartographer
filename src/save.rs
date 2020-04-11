@@ -8,7 +8,7 @@ pub struct JsSave {
     #[wasm_bindgen(skip)]
     pub reader: brs::read::ReaderAfterBricks,
     #[wasm_bindgen(skip)]
-    pub bricks: brs::read::ReadBricks,
+    pub bricks: Vec<brs::Brick>,
 }
 
 #[wasm_bindgen]
@@ -18,7 +18,7 @@ impl JsSave {
             .map()
             .to_string()
     }
-    
+
     pub fn description(&self) -> String {
         self.reader
             .description()

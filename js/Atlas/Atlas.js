@@ -1,10 +1,11 @@
 import React, {Component} from 'react';
-import {Col, Container, Row, Input, Spinner, Alert, Button} from 'reactstrap';
-import {numberWithCommas} from "../util";
+import {Col, Container, Row, Input, Spinner, Alert, Jumbotron} from 'reactstrap';
+import {numberWithCommas, removeFileExtension} from "../util";
 import 'leaflet/dist/leaflet.css';
 import '../mapstyle.css';
 import './L.CanvasLayer';
 import 'brs-js';
+import SaveInfo from "./SaveInfo";
 
 const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
@@ -22,8 +23,10 @@ export default class Atlas extends Component {
         this.onDrawLayer = this.onDrawLayer.bind(this);
         this.state = {
             fileExtensionError: false,
+            fileReadError: false,
+            fileReadErrorMsg: null,
             loading: false,
-            brickCount: null,
+            map: null,
             save: null
         };
     }
@@ -57,13 +60,15 @@ export default class Atlas extends Component {
                 <Row>
                     <Col sm={12} md={{size: 9, offset: 0}}>
                         <div id='map'/>
+                        <SaveInfo map={this.state.map} save={this.state.save}/>
                         {this.renderSpinner()}
-                        <h2>{this.state.map}</h2>
-                        {this.renderBrickCount()}
-                        <p>{this.state.description}</p>
                         <Alert color="danger" isOpen={this.state.fileExtensionError} toggle={_ => {
                             this.setState({fileExtensionError: false})}}>
                             File must be Brickadia save format (.brs)
+                        </Alert>
+                        <Alert color="danger" isOpen={this.state.fileReadError} toggle={_ => {
+                            this.setState({fileReadError: false})}}>
+                            {this.state.fileReadErrorMsg}
                         </Alert>
                         <p className="mt-2">
                             Load Brickadia Save:
@@ -74,15 +79,6 @@ export default class Atlas extends Component {
             </Container>
         )
     }
-
-    renderBrickCount() {
-        if (this.state.brickCount) {
-            return (
-                <div>{numberWithCommas(this.state.brickCount) + " bricks"}</div>
-            )
-        }
-    }
-
 
     renderSpinner() {
         if (this.state.loading) {
@@ -106,7 +102,7 @@ export default class Atlas extends Component {
         this.setState({
             fileExtensionError: false,
             loading: true,
-            map: file.name
+            map: removeFileExtension(file.name)
         }, () => {
             this.loadFileWASM(file);
         });
@@ -115,11 +111,16 @@ export default class Atlas extends Component {
     loadFileWASM(file) {
         file.arrayBuffer()
             .then(buff => new Uint8Array(buff))
-            .then(buff => wasm.then(rust => rust.load_file(buff)).catch(console.error))
+            .then(buff =>
+                wasm.then(rust => rust.load_file(buff)).catch((error) => {
+                    this.setState({
+                        fileReadError: true,
+                        fileReadErrorMsg: error
+                    });
+                })
+            )
             .then(save => {
                 this.setState({
-                    description: save.description(),
-                    brickCount: save.brick_count(),
                     save: save,
                 }, () => {
                     this.setState({loading: false});

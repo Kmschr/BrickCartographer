@@ -1,1 +1,7 @@
-#map { height: 800px; }
+#map {
+    height: 600px;
+}
+
+#saveInfo {
+    padding: 5px;
+}

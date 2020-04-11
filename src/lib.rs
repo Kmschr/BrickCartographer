@@ -33,5 +33,10 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         Ok(v) => v,
         Err(_e) => return Err(JsValue::from("Error reading bricks")),
     };
-    Ok(JsSave{reader, bricks})
+    Ok( JsSave{
+        reader: reader,
+        bricks: bricks
+            .filter_map(Result::ok)
+            .collect()
+    })
 }
