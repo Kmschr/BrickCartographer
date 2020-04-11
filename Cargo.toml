@@ -18,9 +18,12 @@ chrono = { version = "0.4.9", features = ["wasmbind"] }
 [dependencies.web-sys]
 version = "0.3.4"
 features = [
+  'CanvasRenderingContext2d',
   'Document',
+  'DomTokenList',
   'Element',
   'HtmlCanvasElement',
+  'HtmlCollection',
   'WebGlBuffer',
   'WebGlRenderingContext',
   'WebGlProgram',

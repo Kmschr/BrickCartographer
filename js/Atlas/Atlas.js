@@ -1,7 +1,6 @@
 import React, {Component} from 'react';
 import {Col, Container, Row, Input, Spinner, Alert, Button} from 'reactstrap';
-import {drawBricksContext2D} from "./RenderingContext2D";
-import {RGBToHSL} from "./colors";
+import {numberWithCommas} from "../util";
 import 'leaflet/dist/leaflet.css';
 import '../mapstyle.css';
 import './L.CanvasLayer';
@@ -24,7 +23,7 @@ export default class Atlas extends Component {
         this.state = {
             fileExtensionError: false,
             loading: false,
-            bounds: null,
+            brickCount: null,
             save: null
         };
     }
@@ -40,13 +39,16 @@ export default class Atlas extends Component {
             scrollWheelZoom: false
         });
 
-        // Add a 2D Rendering Context to the Map
+        // Add a HTMLCanvas to the Map
         L.canvasLayer().delegate(this).addTo(this.map);
     }
 
     // Called upon any pan/zoom of map by canvas layer library
     onDrawLayer(info) {
-        drawBricksContext2D(info, this.state.save, this.state.bounds, this.map);
+        if (this.state.save) {
+            let panePos = this.map._getMapPanePos();
+            this.state.save.render(this.map.getZoom(), panePos.x, panePos.y);
+        }
     }
 
     render() {
@@ -57,6 +59,7 @@ export default class Atlas extends Component {
                         <div id='map'/>
                         {this.renderSpinner()}
                         <h2>{this.state.map}</h2>
+                        {this.renderBrickCount()}
                         <p>{this.state.description}</p>
                         <Alert color="danger" isOpen={this.state.fileExtensionError} toggle={_ => {
                             this.setState({fileExtensionError: false})}}>
@@ -72,14 +75,14 @@ export default class Atlas extends Component {
         )
     }
 
-    drawMethodGL(info) {
-        const gl = info.canvas.getContext('webgl', {
-            antialias: false,
-            desynchronized: true
-        });
-        gl.clearColor(0.9, 0.9, 0.9, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+    renderBrickCount() {
+        if (this.state.brickCount) {
+            return (
+                <div>{numberWithCommas(this.state.brickCount) + " bricks"}</div>
+            )
+        }
     }
+
 
     renderSpinner() {
         if (this.state.loading) {
@@ -112,90 +115,20 @@ export default class Atlas extends Component {
     loadFileWASM(file) {
         file.arrayBuffer()
             .then(buff => new Uint8Array(buff))
-            .then(buff => wasm.then(brs => brs.load_file(buff)).catch(console.error))
-            .then(brs => {
-                let save = {
-                    description: brs.description(),
-                    brick_count: brs.brick_count(),
-                    colors: brs.colors(),
-                    brick_assets: brs.brick_assets(),
-                    bricks: []
-                };
-
-                let rustBricks = brs.bricks();
-
-                for (let i=0; i < rustBricks.length; i++) {
-                    let brick = rustBricks[i];
-                    save.bricks[i] = {
-                        asset_name_index: brick.asset_name_index(),
-                        size: brick.size(),
-                        position: brick.position(),
-                        direction: brick.direction(),
-                        rotation: brick.rotation(),
-                        visibility: brick.visibility(),
-                        color: brick.color()
-                    }
-                }
-
-                console.log(save);
-                let bounds = this.getBounds(save);
-
+            .then(buff => wasm.then(rust => rust.load_file(buff)).catch(console.error))
+            .then(save => {
                 this.setState({
-                    description: save.description,
+                    description: save.description(),
+                    brickCount: save.brick_count(),
                     save: save,
-                    bounds: bounds
                 }, () => {
                     this.setState({loading: false});
-                    this.map.flyTo(L.latLng(0, 0), -1);
+                    //this.map.flyTo(L.latLng(0, 0), -1);
                 });
             });
     }
 
-    /*
-    loadFile(event) {
-        let file = event.target.files[0];
-        let extension = file.name.split('.').pop();
-
-        if (extension !== 'brs') {
-            this.setState({
-               fileExtensionError: true
-            });
-            return;
-        }
-
-        this.setState({
-            fileExtensionError: false,
-            loading: true,
-            map: file.name
-        }, () => {
-            file.arrayBuffer().then(this.readBuff);
-        });
-    }
-
-
-    readBuff(buff) {
-        let save = BRS.read(new Buffer(buff));
-        save.bricks.sort((a, b) => {
-           return (a.position[2]+a.size[2]) -  (b.position[2]+b.size[2]);
-        });
-        save.colors = save.colors.map((rgb) => {
-            return RGBToHSL(rgb[0], rgb[1], rgb[2]);
-        });
-        let bounds = this.getBounds(save);
-
-        //console.log(save);
-        console.log("done");
-        this.setState({
-            description: save.description,
-            save: save,
-            bounds: bounds
-        }, () => {
-            this.setState({loading: false});
-            this.map.flyTo(L.latLng(0, 0), -1);
-        });
-    }
-     */
-
+    /* REWRITE IN RUST
     getBounds(save) {
         let bounds = {
             x1: null,
@@ -241,5 +174,6 @@ export default class Atlas extends Component {
         }
         return bounds;
     }
+     */
 
 }

@@ -4,6 +4,7 @@
 export function drawBricksContext2D(info, save, bounds, map) {
     let ctx = info.canvas.getContext('2d');
     ctx.clearRect(0, 0, info.canvas.width, info.canvas.height);
+    console.log(info.canvas);
 
     if (!save || !bounds)
         return;
