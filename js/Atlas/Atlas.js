@@ -120,13 +120,17 @@ export default class Atlas extends Component {
                 })
             )
             .then(save => {
-                save.process_bricks();
-                this.setState({
-                    save: save,
-                }, () => {
-                    this.setState({loading: false});
-                    //this.map.flyTo(L.latLng(0, 0), -1);
-                });
+                try {
+                    save.process_bricks();
+                    this.setState({
+                        save: save
+                    }, () => {
+                        this.setState({loading: false});
+                        //this.map.flyTo(L.latLng(0, 0), -1);
+                    });
+                } catch (err) {
+                    console.error(err);
+                }
             });
     }
 

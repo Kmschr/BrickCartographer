@@ -7,6 +7,8 @@ mod render_webgl;
 mod graphics;
 mod save;
 
+use brs::{HasHeader1, HasHeader2};
+
 use wasm_bindgen::prelude::*;
 use graphics::Bounds;
 use save::JsSave;
@@ -36,6 +38,9 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         Ok(v) => v,
         Err(_e) => return Err(JsValue::from("Error reading bricks")),
     };
+    let desc = reader.description().to_string();
+    let bc = reader.brick_count();
+    let assets = reader.brick_assets().to_vec();
     Ok(JsSave {
         reader: reader,
         bricks: bricks
@@ -47,5 +52,8 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
             x2: i32::min_value(),
             y2: i32::min_value(),
         },
+        description: desc,
+        brick_count: bc,
+        brick_assets: assets,
     })
 }

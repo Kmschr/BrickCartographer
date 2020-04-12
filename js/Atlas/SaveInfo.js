@@ -23,9 +23,19 @@ export default class SaveInfo extends Component {
     renderBrickCount() {
         if (this.props.save) {
             return (
-                <div>{numberWithCommas(this.props.save.brick_count()) + " bricks"}</div>
+                <div>{numberWithCommas(this.getBrickCount()) + " bricks"}</div>
             )
         }
+    }
+
+    getBrickCount() {
+        let bricks = 0;
+        try {
+            bricks = this.props.save.brick_count();
+        } catch (err) {
+            console.error(err);
+        }
+        return bricks;
     }
 
 }
