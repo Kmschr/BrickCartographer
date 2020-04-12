@@ -3,7 +3,7 @@ extern crate wasm_bindgen;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{WebGlProgram, WebGlRenderingContext, WebGlShader};
+use self::web_sys::{WebGlProgram, WebGlRenderingContext, WebGlShader};
 
 #[wasm_bindgen]
 pub fn render() -> Result<(), JsValue> {

@@ -2,10 +2,13 @@ extern crate brs;
 extern crate js_sys;
 extern crate wasm_bindgen;
 
-mod render_2d;
+mod render_webgl;
+//mod render_2d;
+mod graphics;
 mod save;
 
 use wasm_bindgen::prelude::*;
+use graphics::Bounds;
 use save::JsSave;
 
 #[wasm_bindgen]
@@ -33,10 +36,16 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         Ok(v) => v,
         Err(_e) => return Err(JsValue::from("Error reading bricks")),
     };
-    Ok( JsSave{
+    Ok(JsSave {
         reader: reader,
         bricks: bricks
             .filter_map(Result::ok)
-            .collect()
+            .collect(),
+        bounds: Bounds::<i32> {
+            x1: i32::max_value(), 
+            y1: i32::max_value(), 
+            x2: i32::min_value(),
+            y2: i32::min_value(),
+        },
     })
 }

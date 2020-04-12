@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import {Col, Container, Row, Input, Spinner, Alert, Jumbotron} from 'reactstrap';
-import {numberWithCommas, removeFileExtension} from "../util";
+import {removeFileExtension} from "../util";
 import 'leaflet/dist/leaflet.css';
 import '../mapstyle.css';
 import './L.CanvasLayer';
@@ -50,7 +50,7 @@ export default class Atlas extends Component {
     onDrawLayer(info) {
         if (this.state.save) {
             let panePos = this.map._getMapPanePos();
-            this.state.save.render(this.map.getZoom(), panePos.x, panePos.y);
+            this.state.save.render();
         }
     }
 
@@ -120,6 +120,7 @@ export default class Atlas extends Component {
                 })
             )
             .then(save => {
+                save.process_bricks();
                 this.setState({
                     save: save,
                 }, () => {
@@ -128,53 +129,5 @@ export default class Atlas extends Component {
                 });
             });
     }
-
-    /* REWRITE IN RUST
-    getBounds(save) {
-        let bounds = {
-            x1: null,
-            y1: null,
-            x2: null,
-            y2: null
-        };
-        for (let i=0; i < save.bricks.length; i++) {
-            let brick = save.bricks[i];
-
-            // ignore invisible bricks
-            if (!brick.visibility)
-                continue;
-
-            let name = save.brick_assets[brick.asset_name_index];
-            if (name[0] !== 'P')
-                continue;
-
-            // calculate bounds of procedural brick
-            let x1 = brick.position[0] - brick.size[0];
-            let x2 = brick.position[0] + brick.size[0];
-            let y1 = brick.position[1] - brick.size[1];
-            let y2 = brick.position[1] + brick.size[1];
-
-            // no bounds yet so start with first brick bounds
-            if (!bounds.x1) {
-                bounds = {
-                    x1: x1,
-                    y1: y1,
-                    x2: x2,
-                    y2: y2
-                }
-            } else {
-                if (x1 < bounds.x1)
-                    bounds.x1 = x1;
-                if (y1 < bounds.y1)
-                    bounds.y1 = y1;
-                if (x2 > bounds.x2)
-                    bounds.x2 = x2;
-                if (y2 > bounds.y2)
-                    bounds.y2 = y2;
-            }
-        }
-        return bounds;
-    }
-     */
 
 }
