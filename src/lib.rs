@@ -1,8 +1,9 @@
 extern crate brs;
 extern crate js_sys;
+extern crate web_sys;
 extern crate wasm_bindgen;
 
-mod render_webgl;
+mod webgl;
 //mod render_2d;
 mod graphics;
 mod save;
@@ -10,7 +11,7 @@ mod save;
 use brs::{HasHeader1, HasHeader2};
 
 use wasm_bindgen::prelude::*;
-use graphics::Bounds;
+use graphics::*;
 use save::JsSave;
 
 #[wasm_bindgen]
@@ -42,7 +43,7 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
     let bc = reader.brick_count();
     let assets = reader.brick_assets().to_vec();
     Ok(JsSave {
-        reader: reader,
+        reader,
         bricks: bricks
             .filter_map(Result::ok)
             .collect(),
@@ -55,5 +56,8 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         description: desc,
         brick_count: bc,
         brick_assets: assets,
+        context: webgl::get_rendering_context().unwrap(),
+        colors: Vec::new(),
+        center: Point::<f32> {x:0.0, y:0.0},
     })
 }

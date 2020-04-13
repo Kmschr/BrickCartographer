@@ -19,7 +19,6 @@ export default class Atlas extends Component {
         super(props);
         this.loadFile = this.loadFile.bind(this);
         this.loadFileWASM = this.loadFileWASM.bind(this);
-        //this.readBuff = this.readBuff.bind(this);
         this.onDrawLayer = this.onDrawLayer.bind(this);
         this.state = {
             fileExtensionError: false,
@@ -50,7 +49,8 @@ export default class Atlas extends Component {
     onDrawLayer(info) {
         if (this.state.save) {
             let panePos = this.map._getMapPanePos();
-            this.state.save.render();
+            let scale = Math.pow(2, this.map.getZoom());
+            this.state.save.render(panePos.x, panePos.y, scale);
         }
     }
 
@@ -121,12 +121,13 @@ export default class Atlas extends Component {
             )
             .then(save => {
                 try {
-                    save.process_bricks();
+                    let center = save.process_bricks();
+                    console.log(center);
                     this.setState({
                         save: save
                     }, () => {
                         this.setState({loading: false});
-                        //this.map.flyTo(L.latLng(0, 0), -1);
+                        this.map.flyTo(L.latLng(-center[0], center[1]), 0);
                     });
                 } catch (err) {
                     console.error(err);
