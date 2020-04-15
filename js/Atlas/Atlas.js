@@ -1,6 +1,6 @@
-import React, {Component} from 'react';
-import {Col, Container, Row, Input, Spinner, Alert, Jumbotron} from 'reactstrap';
-import {removeFileExtension} from "../util";
+import React, { Component } from 'react';
+import { Col, Container, Row, Input, Spinner, Alert, Jumbotron } from 'reactstrap';
+import { removeFileExtension } from "../util";
 import 'leaflet/dist/leaflet.css';
 import '../mapstyle.css';
 import './L.CanvasLayer';
@@ -20,13 +20,18 @@ export default class Atlas extends Component {
         this.loadFile = this.loadFile.bind(this);
         this.loadFileWASM = this.loadFileWASM.bind(this);
         this.onDrawLayer = this.onDrawLayer.bind(this);
+        this.getNewPan = this.getNewPan.bind(this);
         this.state = {
             fileExtensionError: false,
             fileReadError: false,
             fileReadErrorMsg: null,
             loading: false,
             map: null,
-            save: null
+            save: null,
+            pan: {
+                x: 0,
+                y: 0
+            }
         };
     }
 
@@ -38,7 +43,7 @@ export default class Atlas extends Component {
             zoom: MAP_ZOOM_DEFAULT,
             minZoom: MAP_ZOOM_MIN,
             attributionControl: false,
-            scrollWheelZoom: false
+            scrollWheelZoom: true
         });
 
         // Add a HTMLCanvas to the Map
@@ -48,31 +53,66 @@ export default class Atlas extends Component {
     // Called upon any pan/zoom of map by canvas layer library
     onDrawLayer(info) {
         if (this.state.save) {
-            let panePos = this.map._getMapPanePos();
+            // get current pan and current scale
+            let pane = this.map._getMapPanePos();
             let scale = Math.pow(2, this.map.getZoom());
-            this.state.save.render(panePos.x, panePos.y, scale);
+
+            let newPan = this.getNewPan(pane, scale);
+
+            this.state.save.render(info.canvas.width, info.canvas.height, newPan.x, newPan.y, scale);
+
+            this.state.pan = newPan;
+            this.state.pane.x = pane.x;
+            this.state.pane.y = pane.y;
+
         }
+    }
+
+    getNewPan(pane, scale) {
+        if (!this.state.pane) {
+            this.state.pane = {
+                x: pane.x,
+                y: pane.y
+            }
+        }
+        // get amount of panning occured
+        let panDiff = {
+            x: pane.x - this.state.pane.x,
+            y: pane.y - this.state.pane.y
+        };
+        // scale the amount of panning
+        let diffScaled = {
+            x: panDiff.x / scale,
+            y: panDiff.y / scale
+        };
+        // apply the scaled amount of panning to original pre pan
+        return {
+            x: this.state.pan.x + diffScaled.x,
+            y: this.state.pan.y + diffScaled.y
+        };
     }
 
     render() {
         return (
             <Container>
                 <Row>
-                    <Col sm={12} md={{size: 9, offset: 0}}>
-                        <div id='map'/>
-                        <SaveInfo map={this.state.map} save={this.state.save}/>
+                    <Col sm={12} md={{ size: 9, offset: 0 }}>
+                        <div id='map' />
+                        <SaveInfo map={this.state.map} save={this.state.save} />
                         {this.renderSpinner()}
                         <Alert color="danger" isOpen={this.state.fileExtensionError} toggle={_ => {
-                            this.setState({fileExtensionError: false})}}>
+                            this.setState({ fileExtensionError: false })
+                        }}>
                             File must be Brickadia save format (.brs)
                         </Alert>
                         <Alert color="danger" isOpen={this.state.fileReadError} toggle={_ => {
-                            this.setState({fileReadError: false})}}>
+                            this.setState({ fileReadError: false })
+                        }}>
                             {this.state.fileReadErrorMsg}
                         </Alert>
                         <p className="mt-2">
                             Load Brickadia Save:
-                            <Input type='file' name='file' onChange={this.loadFile}/>
+                            <Input type='file' name='file' onChange={this.loadFile} />
                         </p>
                     </Col>
                 </Row>
@@ -83,7 +123,7 @@ export default class Atlas extends Component {
     renderSpinner() {
         if (this.state.loading) {
             return (
-                <Spinner className='mt-2' color="primary"/>
+                <Spinner className='mt-2' color="primary" />
             )
         }
     }
@@ -126,8 +166,8 @@ export default class Atlas extends Component {
                     this.setState({
                         save: save
                     }, () => {
-                        this.setState({loading: false});
-                        this.map.flyTo(L.latLng(-center[0], center[1]), 0);
+                        this.setState({ loading: false });
+                        this.map.setView(L.latLng(0, 0), -2);
                     });
                 } catch (err) {
                     console.error(err);

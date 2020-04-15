@@ -29,6 +29,8 @@ pub struct JsSave {
     pub colors: Vec<Color>,
     #[wasm_bindgen(skip)]
     pub center: Point<f32>,
+    #[wasm_bindgen(skip)]
+    pub offset: Point<f32>,
 }
 
 #[wasm_bindgen]
@@ -71,7 +73,7 @@ impl JsSave {
             let brick_owner_oob = brick.owner_index as usize >= self.reader.brick_owners().len();
 
             if brick_owner_oob {
-                //log(&format!("owner_index: {}", brick.owner_index));
+                log(&format!("owner_index: {}", brick.owner_index));
             }
 
             if brick_bounds.x1.abs() > MAX_BRICK_DISTANCE || 
@@ -120,8 +122,16 @@ impl JsSave {
         js_sys::Array::of2(&JsValue::from_f64(self.center.x as f64), &JsValue::from_f64(self.center.y as f64))
     }
 
-    pub fn render(&self, pan_x: f32, pan_y: f32, scale: f32) -> Result<(), JsValue> {
-        log(&format!("{},{}", pan_x, pan_y));
-        webgl::render(&self, &self.colors, &[pan_x, pan_y], scale)
+    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32) -> Result<(), JsValue> {
+        //log(&format!("{},{}", pan_x, pan_y));
+        let pan = Point::<f32> {
+            x: pan_x,
+            y: pan_y,
+        };
+        let size = Point::<i32> {
+            x: size_x,
+            y: size_y,
+        };
+        webgl::render(&self, size, pan, scale)
     }
 }

@@ -77,6 +77,7 @@ pub fn multiply(a: [f32; 9], b: [f32; 9]) -> [f32; 9] {
     ]
 }
 
+/*
 pub fn divide(m: [f32;9], x: f32) -> [f32;9] {
     [
         m[0]/x, m[1]/x, m[2]/x,
@@ -167,3 +168,4 @@ pub fn cofactor(m: [f32;9]) -> [f32;9] {
 fn det2d(m: [f32;4]) -> f32 {
     m[0]*m[3] - m[1]*m[2]
 }
+*/

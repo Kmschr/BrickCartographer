@@ -12,6 +12,14 @@ pub struct Bounds<T> {
 }
 
 #[derive(Debug)]
+pub struct Rect<T> {
+    pub x: T,
+    pub y: T,
+    pub width: T,
+    pub height: T,
+}
+
+#[derive(Debug)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,
