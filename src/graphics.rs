@@ -47,3 +47,14 @@ pub fn convert_color(color: &brs::Color) -> Color {
         a: color.a() as f32 / 255.0,
     }
 }
+
+impl Color {
+    pub fn black() -> Color {
+        Color {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        }
+    }
+}

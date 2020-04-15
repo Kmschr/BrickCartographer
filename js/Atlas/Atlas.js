@@ -1,6 +1,6 @@
-import React, { Component } from 'react';
-import { Col, Container, Row, Input, Spinner, Alert, Jumbotron } from 'reactstrap';
-import { removeFileExtension } from "../util";
+import React, {Component} from 'react';
+import {Col, Container, Row, Input, Spinner, Alert, Button} from 'reactstrap';
+import {removeFileExtension} from "../util";
 import 'leaflet/dist/leaflet.css';
 import '../mapstyle.css';
 import './L.CanvasLayer';
@@ -20,6 +20,7 @@ export default class Atlas extends Component {
         this.loadFile = this.loadFile.bind(this);
         this.loadFileWASM = this.loadFileWASM.bind(this);
         this.onDrawLayer = this.onDrawLayer.bind(this);
+        this.renderOptions = this.renderOptions.bind(this);
         this.getNewPan = this.getNewPan.bind(this);
         this.state = {
             fileExtensionError: false,
@@ -28,6 +29,7 @@ export default class Atlas extends Component {
             loading: false,
             map: null,
             save: null,
+            showOutlines: false,
             pan: {
                 x: 0,
                 y: 0
@@ -47,7 +49,8 @@ export default class Atlas extends Component {
         });
 
         // Add a HTMLCanvas to the Map
-        L.canvasLayer().delegate(this).addTo(this.map);
+        this.canvas = L.canvasLayer().delegate(this);
+        this.canvas.addTo(this.map);
     }
 
     // Called upon any pan/zoom of map by canvas layer library
@@ -59,7 +62,7 @@ export default class Atlas extends Component {
 
             let newPan = this.getNewPan(pane, scale);
 
-            this.state.save.render(info.canvas.width, info.canvas.height, newPan.x, newPan.y, scale);
+            this.state.save.render(info.canvas.width, info.canvas.height, newPan.x, newPan.y, scale, this.state.showOutlines);
 
             this.state.pan = newPan;
             this.state.pane.x = pane.x;
@@ -106,24 +109,58 @@ export default class Atlas extends Component {
                             File must be Brickadia save format (.brs)
                         </Alert>
                         <Alert color="danger" isOpen={this.state.fileReadError} toggle={_ => {
-                            this.setState({ fileReadError: false })
+                            this.setState({fileReadError: false})
                         }}>
                             {this.state.fileReadErrorMsg}
                         </Alert>
+                        {this.renderOptions()}
                         <p className="mt-2">
                             Load Brickadia Save:
-                            <Input type='file' name='file' onChange={this.loadFile} />
+                            <Input type='file' name='file' onChange={this.loadFile}/>
                         </p>
+                        <br/>
+                        <h2>Planned Features</h2>
+                        <ul>
+                            <li>Fullscreen mode</li>
+                            <li>Map rotation</li>
+                            <li>Default save</li>
+                            <li>Chunk rendering for improved performance</li>
+                            <li>PNG exporting</li>
+                            <li>Altitude cutoff for viewing inside structures</li>
+                            <li>Color adjustment options</li>
+                        </ul>
+                        <h2>Known Issues</h2>
+                        <ul>
+                            <li>Certain saves will not load (e.g: Brickadia City) due to error w/ brs-rs</li>
+                            <li>Zooming w/ mouse/shift-drag does not pan appropiately</li>
+                            <li>Poor performance with saves larger than 100k bricks</li>
+                        </ul>
                     </Col>
                 </Row>
             </Container>
         )
     }
 
+    renderOptions() {
+        if (this.state.save) {
+            return (
+                <Button color="success" onClick={() => {
+                    this.setState({
+                        showOutlines: !this.state.showOutlines
+                    }, () => {
+                        this.canvas.needRedraw();
+                    });
+                }}>
+                    Toggle brick outlines
+                </Button>
+            )
+        }
+    }
+
     renderSpinner() {
         if (this.state.loading) {
             return (
-                <Spinner className='mt-2' color="primary" />
+                <Spinner className='mt-2' color="primary"/>
             )
         }
     }
@@ -161,16 +198,18 @@ export default class Atlas extends Component {
             )
             .then(save => {
                 try {
-                    let center = save.process_bricks();
-                    console.log(center);
+                    save.process_bricks();
                     this.setState({
                         save: save
                     }, () => {
-                        this.setState({ loading: false });
+                        this.setState({loading: false});
                         this.map.setView(L.latLng(0, 0), -2);
                     });
                 } catch (err) {
                     console.error(err);
+                    this.setState({
+                        loading: false
+                    });
                 }
             });
     }

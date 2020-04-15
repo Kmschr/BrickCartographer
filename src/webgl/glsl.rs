@@ -4,10 +4,14 @@ pub const VERTEX_SHADER_CODE: &str = r#"
     precision mediump float;
 
     attribute vec2 a_position;
+    attribute vec3 a_color;
 
     uniform mat3 u_matrix;
 
+    varying vec4 v_color;
+
     void main() {
+        v_color = vec4(a_color, 1);
         gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
     }
 "#;
@@ -15,10 +19,10 @@ pub const VERTEX_SHADER_CODE: &str = r#"
 pub const FRAGMENT_SHADER_CODE: &str = r#"
     precision mediump float;
 
-    uniform vec4 u_color;
+    varying vec4 v_color;
 
     void main() {
-        gl_FragColor = u_color;
+        gl_FragColor = v_color;
     }
 "#;
 

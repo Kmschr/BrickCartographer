@@ -49,7 +49,7 @@ impl JsSave {
         self.brick_count
     }
 
-    pub fn process_bricks(&mut self) -> Array {
+    pub fn process_bricks(&mut self) -> Result<(), JsValue> {
         self.bricks
             .sort_unstable_by_key(|brick| brick.position.2 + brick.size.2 as i32);
 
@@ -70,10 +70,11 @@ impl JsSave {
                 y2: brick.position.1 + brick.size.1 as i32,
             };
 
-            let brick_owner_oob = brick.owner_index as usize >= self.reader.brick_owners().len();
+            let brick_owner_oob = brick.owner_index as usize > self.reader.brick_owners().len();
 
             if brick_owner_oob {
-                log(&format!("owner_index: {}", brick.owner_index));
+                //log(&format!("owner_index: {}", brick.owner_index));
+                return Err(JsValue::from_str("Save version not compatible w/ brs-rs"));
             }
 
             if brick_bounds.x1.abs() > MAX_BRICK_DISTANCE || 
@@ -119,10 +120,10 @@ impl JsSave {
             y: point_sum.y / area_sum,
         };
 
-        js_sys::Array::of2(&JsValue::from_f64(self.center.x as f64), &JsValue::from_f64(self.center.y as f64))
+        Ok(())
     }
 
-    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32) -> Result<(), JsValue> {
+    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, show_outlines: bool) -> Result<(), JsValue> {
         //log(&format!("{},{}", pan_x, pan_y));
         let pan = Point::<f32> {
             x: pan_x,
@@ -132,6 +133,6 @@ impl JsSave {
             x: size_x,
             y: size_y,
         };
-        webgl::render(&self, size, pan, scale)
+        webgl::render(&self, size, pan, scale, show_outlines)
     }
 }

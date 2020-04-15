@@ -22,7 +22,6 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
-    log("Loading Save...");
     let reader = match brs::Reader::new(body.as_slice()) {
         Ok(v) => v,
         Err(_e) => return Err(JsValue::from("Error reading file")),
