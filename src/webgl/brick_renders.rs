@@ -21,37 +21,42 @@ pub fn render_pb(gl: &WebGlRenderingContext, brick: &brs::Brick, color: Color, s
 
 pub fn render_pb_wedge(gl: &WebGlRenderingContext, brick: &brs::Brick, color: Color, show_outlines: bool) {
     let brick_rect = get_brick_rect(brick);
+    let verts: [f32;6];
+
     match brick.rotation {
-        brs::Rotation::Deg0 => {
-            fill_tri(gl, [
+        brs::Rotation::Deg0 => { // ORANGE TRIANGLE
+            verts = [
                 brick_rect.x, brick_rect.y, 
                 brick_rect.x + brick_rect.width, brick_rect.y,
                 brick_rect.x, brick_rect.y + brick_rect.height,
-            ], color)
+            ];
         },
-        brs::Rotation::Deg90 => {
-            fill_tri(gl, [
+        brs::Rotation::Deg90 => { // BLUE TRIANGLE
+            verts = [
                 brick_rect.x, brick_rect.y, 
                 brick_rect.x + brick_rect.width, brick_rect.y,
                 brick_rect.x + brick_rect.width, brick_rect.y + brick_rect.height,
-            ], color)
+            ];
         },
-        brs::Rotation::Deg180 => {
-            fill_tri(gl, [
+        brs::Rotation::Deg180 => { // GREEN TRIANGLE
+            verts = [
                 brick_rect.x, brick_rect.y + brick_rect.height, 
                 brick_rect.x + brick_rect.width, brick_rect.y,
                 brick_rect.x + brick_rect.width, brick_rect.y + brick_rect.height,
-            ], color)
+            ];
         },
-        brs::Rotation::Deg270 => {
-            fill_tri(gl, [
+        brs::Rotation::Deg270 => { // RED TRIANGLE
+            verts = [
                 brick_rect.x, brick_rect.y, 
                 brick_rect.x, brick_rect.y + brick_rect.height,
                 brick_rect.x + brick_rect.width, brick_rect.y + brick_rect.height,
-            ], color)
+            ];
         },
     }
-    gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 3);
+    fill_tri(gl, verts, color);
+    if show_outlines {
+        outline_tri(gl, verts, Color::black());
+    }
 }
 
 pub fn get_brick_rect(brick: &brs::Brick) -> Rect<f32> {
@@ -188,6 +193,42 @@ fn fill_rect(gl: &WebGlRenderingContext, rect: &Rect<f32>, color: Color) {
     gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 6);
 }
 
+fn outline_tri(gl: &WebGlRenderingContext, verts: [f32;6], color: Color) {
+    let delta = 0.2;
+    unsafe {
+        gl.buffer_data_with_array_buffer_view(
+            WebGlRenderingContext::ARRAY_BUFFER,
+            &js_sys::Float32Array::view(&[
+                // SIDE 1
+                verts[0], verts[1],  color.r, color.g, color.b,
+                verts[2], verts[3],  color.r, color.g, color.b,
+                verts[0] + delta, verts[1] + delta,  color.r, color.g, color.b,
+                verts[0] + delta, verts[1] + delta,  color.r, color.g, color.b,
+                verts[2], verts[3],  color.r, color.g, color.b,
+                verts[2] + delta, verts[3] + delta,  color.r, color.g, color.b,
+
+                //SIDE 2
+                verts[2], verts[3],  color.r, color.g, color.b,
+                verts[4], verts[5],  color.r, color.g, color.b,
+                verts[2] - delta, verts[3] - delta,  color.r, color.g, color.b,
+                verts[2] - delta, verts[3] - delta,  color.r, color.g, color.b,
+                verts[4], verts[5],  color.r, color.g, color.b,
+                verts[4] - delta, verts[5] - delta,  color.r, color.g, color.b,
+
+                // SIDE 3
+                verts[0], verts[1],  color.r, color.g, color.b,
+                verts[4], verts[5],  color.r, color.g, color.b,
+                verts[0] + delta, verts[1] + delta,  color.r, color.g, color.b,
+                verts[0] + delta, verts[1] + delta,  color.r, color.g, color.b,
+                verts[4], verts[5],  color.r, color.g, color.b,
+                verts[4] - delta, verts[5] - delta,  color.r, color.g, color.b,
+            ]),
+            WebGlRenderingContext::STATIC_DRAW
+        );
+    }
+    gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 18);
+}
+
 fn fill_tri(gl: &WebGlRenderingContext, verts: [f32;6], color: Color) {
     unsafe {
         gl.buffer_data_with_array_buffer_view(
@@ -200,4 +241,5 @@ fn fill_tri(gl: &WebGlRenderingContext, verts: [f32;6], color: Color) {
             WebGlRenderingContext::STATIC_DRAW
         );
     }
+    gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 3);
 }
