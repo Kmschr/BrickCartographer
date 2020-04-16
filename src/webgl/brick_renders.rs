@@ -1,6 +1,8 @@
 use web_sys::{WebGlRenderingContext};
 use crate::{Rect, Color};
 
+const USAGE_PATTERN: u32 = WebGlRenderingContext::DYNAMIC_DRAW;
+
 pub fn render_brick(gl: &WebGlRenderingContext, brick: &brs::Brick, name: &str, color: Color, show_outlines: bool) {
     if name.contains("Wedge") {
         render_pb_wedge(gl, brick, color, show_outlines);
@@ -59,7 +61,7 @@ pub fn render_pb_wedge(gl: &WebGlRenderingContext, brick: &brs::Brick, color: Co
     }
 }
 
-pub fn get_brick_rect(brick: &brs::Brick) -> Rect<f32> {
+pub fn get_brick_rect(brick: &brs::Brick) -> Rect {
     let x: f32;
     let y: f32;
     let width: f32;
@@ -92,7 +94,7 @@ pub fn get_brick_rect(brick: &brs::Brick) -> Rect<f32> {
         },
     }
 
-    Rect::<f32> {x, y, width, height}
+    Rect {x, y, width, height}
 }
 
 pub fn get_color(brick: &brs::Brick, colors: &[Color]) -> Color {
@@ -120,7 +122,7 @@ pub fn get_color(brick: &brs::Brick, colors: &[Color]) -> Color {
     color
 }
 
-fn outline_rect(gl: &WebGlRenderingContext, rect: &Rect<f32>, color: Color) {
+fn outline_rect(gl: &WebGlRenderingContext, rect: &Rect, color: Color) {
     let x1 = rect.x;
     let x2 = rect.x + rect.width;
     let y1 = rect.y;
@@ -162,14 +164,14 @@ fn outline_rect(gl: &WebGlRenderingContext, rect: &Rect<f32>, color: Color) {
                 x1, y2 - dy,  color.r, color.g, color.b,
                 x2, y2 - dy,  color.r, color.g, color.b,
             ]),
-            WebGlRenderingContext::STATIC_DRAW
+            USAGE_PATTERN
         );
     }
 
     gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 24);
 }
 
-fn fill_rect(gl: &WebGlRenderingContext, rect: &Rect<f32>, color: Color) {
+fn fill_rect(gl: &WebGlRenderingContext, rect: &Rect, color: Color) {
     let x1 = rect.x;
     let x2 = rect.x + rect.width;
     let y1 = rect.y;
@@ -186,7 +188,7 @@ fn fill_rect(gl: &WebGlRenderingContext, rect: &Rect<f32>, color: Color) {
                 x2, y1,  color.r, color.g, color.b,
                 x2, y2,  color.r, color.g, color.b,
             ]),
-            WebGlRenderingContext::STATIC_DRAW
+            USAGE_PATTERN
         );
     }
 
@@ -223,7 +225,7 @@ fn outline_tri(gl: &WebGlRenderingContext, verts: [f32;6], color: Color) {
                 verts[4], verts[5],  color.r, color.g, color.b,
                 verts[4] - delta, verts[5] - delta,  color.r, color.g, color.b,
             ]),
-            WebGlRenderingContext::STATIC_DRAW
+            USAGE_PATTERN
         );
     }
     gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 18);
@@ -238,7 +240,7 @@ fn fill_tri(gl: &WebGlRenderingContext, verts: [f32;6], color: Color) {
                 verts[2], verts[3],  color.r, color.g, color.b,
                 verts[4], verts[5],  color.r, color.g, color.b,
             ]),
-            WebGlRenderingContext::STATIC_DRAW
+            USAGE_PATTERN
         );
     }
     gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 3);

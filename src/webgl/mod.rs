@@ -33,7 +33,7 @@ pub fn get_rendering_context() -> Option<WebGlRenderingContext> {
     }
 }
 
-pub fn render(save: &JsSave, size: Point<i32>, pan: Point<f32>, scale: f32, show_outlines: bool) -> Result<(), JsValue> {
+pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, show_outlines: bool) -> Result<(), JsValue> {
     let gl = &save.context;
     let vert_shader = glsl::compile_shader(
         &gl,
@@ -53,7 +53,7 @@ pub fn render(save: &JsSave, size: Point<i32>, pan: Point<f32>, scale: f32, show
     //let color_uniform_location = gl.get_uniform_location(&program, "u_color");
     let vertex_buffer = gl.create_buffer().ok_or("failed to create buffer")?;
 
-    gl.viewport(0, 0, size.x, size.y);
+    gl.viewport(0, 0, size.x as i32, size.y as i32);
 
     gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
 
@@ -82,22 +82,29 @@ pub fn render(save: &JsSave, size: Point<i32>, pan: Point<f32>, scale: f32, show
     gl.enable_vertex_attrib_array(position_attribute_location);
     gl.enable_vertex_attrib_array(color_attribute_location);
 
-    let canvas_width = size.x as f32;
-    let canvas_height =size.y as f32;
+    let offset = Point {
+        x: pan.x - save.center.x,
+        y: pan.y - save.center.y
+    };
 
-    let mut matrix = m3::projection(canvas_width, canvas_height);
-    matrix = m3::translate(matrix, canvas_width/2.0, canvas_height/2.0);
+    let mut matrix = m3::projection(size.x, size.y);
+    matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
     matrix = m3::scale(matrix, scale, scale);
-    matrix = m3::translate(matrix, pan.x, pan.y);
-    matrix = m3::translate(matrix, -save.center.x, -save.center.y);
-    //matrix = m3::translate(matrix, cur_offset.x, cur_offset.y);
-    //matrix = m3::translate(matrix, offset.x, offset.y);
+    matrix = m3::translate(matrix, offset.x, offset.y);
 
     gl.uniform_matrix3fv_with_f32_array(matrix_uniform_location.as_ref(), false, &matrix);
 
-    gl.line_width(2.0);
+    let visible_area = Rect {
+        x: offset.x,
+        y: offset.y,
+        width: size.x / scale,
+        height: size.y / scale
+    };
 
     for brick in &save.bricks {
+
+        
+
         let name = &save.brick_assets[brick.asset_name_index as usize];
 
         if !brick.visibility || !name.starts_with('P') {

@@ -28,9 +28,9 @@ pub struct JsSave {
     #[wasm_bindgen(skip)]
     pub colors: Vec<Color>,
     #[wasm_bindgen(skip)]
-    pub center: Point<f32>,
+    pub center: Point,
     #[wasm_bindgen(skip)]
-    pub offset: Point<f32>,
+    pub offset: Point,
 }
 
 #[wasm_bindgen]
@@ -53,8 +53,8 @@ impl JsSave {
         self.bricks
             .sort_unstable_by_key(|brick| brick.position.2 + brick.size.2 as i32);
 
-        let mut area_sum: f32 = 0.0;
-        let mut point_sum: Point<f32> = Point::<f32> {x:0.0, y:0.0};
+        let mut area_sum = 0.0;
+        let mut point_sum = Point {x:0.0, y:0.0};
         
         for brick in &self.bricks {
             let name = &self.brick_assets[brick.asset_name_index as usize];
@@ -115,7 +115,7 @@ impl JsSave {
 
         self.colors = self.reader.colors().iter().map(convert_color).collect();
 
-        self.center = Point::<f32> {
+        self.center = Point {
             x: point_sum.x / area_sum,
             y: point_sum.y / area_sum,
         };
@@ -125,14 +125,8 @@ impl JsSave {
 
     pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, show_outlines: bool) -> Result<(), JsValue> {
         //log(&format!("{},{}", pan_x, pan_y));
-        let pan = Point::<f32> {
-            x: pan_x,
-            y: pan_y,
-        };
-        let size = Point::<i32> {
-            x: size_x,
-            y: size_y,
-        };
+        let pan = Point { x: pan_x, y: pan_y};
+        let size = Point { x: size_x as f32, y: size_y as f32};
         webgl::render(&self, size, pan, scale, show_outlines)
     }
 }

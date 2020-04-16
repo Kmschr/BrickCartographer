@@ -12,17 +12,21 @@ pub struct Bounds<T> {
 }
 
 #[derive(Debug)]
-pub struct Rect<T> {
-    pub x: T,
-    pub y: T,
-    pub width: T,
-    pub height: T,
+pub struct Rect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Rect {
+
 }
 
 #[derive(Debug)]
-pub struct Point<T> {
-    pub x: T,
-    pub y: T,
+pub struct Point {
+    pub x: f32,
+    pub y: f32,
 }
 
 #[derive(Debug)]
@@ -31,6 +35,17 @@ pub struct Color {
     pub g: f32,
     pub b: f32,
     pub a: f32,
+}
+
+impl Color {
+    pub fn black() -> Color {
+        Color {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        }
+    }
 }
 
 pub fn convert_color(color: &brs::Color) -> Color {
@@ -45,16 +60,5 @@ pub fn convert_color(color: &brs::Color) -> Color {
         g: g / 255.0,
         b: b / 255.0,
         a: color.a() as f32 / 255.0,
-    }
-}
-
-impl Color {
-    pub fn black() -> Color {
-        Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        }
     }
 }

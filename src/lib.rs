@@ -57,7 +57,7 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         brick_assets: assets,
         context: webgl::get_rendering_context().unwrap(),
         colors: Vec::new(),
-        center: Point::<f32> {x:0.0, y:0.0},
-        offset: Point::<f32> {x:0.0, y:0.0},
+        center: Point {x:0.0, y:0.0},
+        offset: Point {x:0.0, y:0.0},
     })
 }
