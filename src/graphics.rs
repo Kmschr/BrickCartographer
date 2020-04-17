@@ -18,6 +18,27 @@ pub struct Shape {
     pub color: Color
 }
 
+impl Shape {
+    pub fn get_vertex_array(&self) -> Vec<f32> {
+        let mut vertex_array = Vec::new();
+
+        let vertex_count = match self.shape_type {
+            ShapeType::Rect => 6,
+            ShapeType::Tri => 3
+        };
+
+        for i in 0..vertex_count {
+            vertex_array.push(self.vertices[i*2]);
+            vertex_array.push(self.vertices[i*2 + 1]);
+            vertex_array.push(self.color.r);
+            vertex_array.push(self.color.g);
+            vertex_array.push(self.color.b);
+        }
+
+        vertex_array
+    }
+}
+
 #[derive(Debug)]
 pub enum ShapeType {
     Rect,

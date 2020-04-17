@@ -122,46 +122,18 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, show_outlines:
         height: size.y / scale
     };
 
-    for shape in &save.shapes {
-        match shape.shape_type {
-            ShapeType::Rect => {
-                let mut vertex_array: [f32; 30] = [0.0; 30];
-                for i in 0..6 {
-                    vertex_array[i*5] = shape.vertices[i*2];
-                    vertex_array[i*5 + 1] = shape.vertices[i*2 + 1];
-                    vertex_array[i*5 + 2] = shape.color.r;
-                    vertex_array[i*5 + 3] = shape.color.g;
-                    vertex_array[i*5 + 4] = shape.color.b;
-                }
-                unsafe {
-                    gl.buffer_data_with_array_buffer_view(
-                        WebGlRenderingContext::ARRAY_BUFFER,
-                        &js_sys::Float32Array::view(&vertex_array),
-                        WebGlRenderingContext::DYNAMIC_DRAW
-                    );
-                }
-                gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 6);
-            },
-            ShapeType::Tri => {
-                let mut vertex_array: [f32; 15] = [0.0; 15];
-                for i in 0..3 {
-                    vertex_array[i*5] = shape.vertices[i*2];
-                    vertex_array[i*5 + 1] = shape.vertices[i*2 + 1];
-                    vertex_array[i*5 + 2] = shape.color.r;
-                    vertex_array[i*5 + 3] = shape.color.g;
-                    vertex_array[i*5 + 4] = shape.color.b;
-                }
-                unsafe {
-                    gl.buffer_data_with_array_buffer_view(
-                        WebGlRenderingContext::ARRAY_BUFFER,
-                        &js_sys::Float32Array::view(&vertex_array),
-                        WebGlRenderingContext::DYNAMIC_DRAW
-                    );
-                }
-                gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 3);
-            }
-        };
+    let vertex_array = &save.shapes;
+    let vertex_count = (vertex_array.len() / 5) as i32;
+
+    unsafe {
+        gl.buffer_data_with_array_buffer_view(
+            WebGlRenderingContext::ARRAY_BUFFER,
+            &js_sys::Float32Array::view(&vertex_array),
+            WebGlRenderingContext::DYNAMIC_DRAW
+        );
     }
+
+    gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
     
     Ok(())
 }

@@ -23,7 +23,7 @@ pub struct JsSave {
     #[wasm_bindgen(skip)]
     pub center: Point,
     #[wasm_bindgen(skip)]
-    pub shapes: Vec<Shape>,
+    pub shapes: Vec<f32>,
 }
 
 #[wasm_bindgen]
@@ -116,96 +116,83 @@ impl JsSave {
             let mut shape_type = ShapeType::Tri;
 
             // Calculate Shape vertices
-            if name.contains("Wedge") {
-                match brick.direction {
-                    brs::Direction::ZPositive | brs::Direction::ZNegative => { 
-                        match brick.rotation {
-                            brs::Rotation::Deg0 => {
-                                if brick.direction == brs::Direction::ZPositive {
-                                    verts = vec![
-                                        x1, y1,     // Top-Left Tri
-                                        x1, y2,
-                                        x2, y1,
-                                    ];
-                                } else {
-                                    verts = vec![
-                                        x2, y1,     // Top-Right Tri
-                                        x1, y1,
-                                        x2, y2,     
-                                    ];
-                                }
-                            },
-                            brs::Rotation::Deg90 => {
-                                if brick.direction == brs::Direction::ZPositive {
-                                    verts = vec![
-                                        x2, y1,     // Top-Right Tri
-                                        x1, y1,
-                                        x2, y2,     
-                                    ];
-                                } else {
-                                    verts = vec![
-                                        x1, y1,     // Top-Left Tri
-                                        x1, y2,
-                                        x2, y1,
-                                    ];
-                                }
-                            },
-                            brs::Rotation::Deg180 => {
-                                if brick.direction == brs::Direction::ZPositive {
-                                    verts = vec![
-                                        x2, y2,     // Bottom-Right Tri
-                                        x2, y1,
-                                        x1, y2,
-                                    ];
-                                } else {
-                                    verts = vec![
-                                        x1, y2,     // Bottom-Left Tri
-                                        x2, y2,
-                                        x1, y1,
-                                    ];
-                                }
-                            },
-                            brs::Rotation::Deg270 => {
-                                if brick.direction == brs::Direction::ZPositive {
-                                    verts = vec![
-                                        x1, y2,     // Bottom-Left Tri
-                                        x2, y2,
-                                        x1, y1,
-                                    ];
-                                } else {
-                                    verts = vec![
-                                        x2, y2,     // Bottom-Right Tri
-                                        x2, y1,
-                                        x1, y2,
-                                    ];
-                                }
-                            },
+            log(name);
+
+            match name.as_str() {
+                "PB_DefaultBrick" => {
+                    verts = vec![x1, y1, // Top-Left Tri (CCW)
+                                 x1, y2,
+                                 x2, y1,
+                                 x2, y2, // Bottom-Right Tri (CCW)
+                                 x2, y1,
+                                 x1, y2];
+                    shape_type = ShapeType::Rect;
+                },
+                "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" => {
+                    match brick.direction {
+                        brs::Direction::ZPositive => { 
+                            verts = match brick.rotation {
+                                brs::Rotation::Deg0 =>   vec![x1, y1,    // Top-Left Tri
+                                                              x1, y2,
+                                                              x2, y1],
+                                brs::Rotation::Deg90 =>  vec![x2, y1,   // Top-Right Tri
+                                                              x1, y1,
+                                                              x2, y2],
+                                brs::Rotation::Deg180 => vec![x2, y2,  // Bottom-Right Tri
+                                                              x2, y1,
+                                                              x1, y2],
+                                brs::Rotation::Deg270 => vec![x1, y2,     // Bottom-Left Tri
+                                                              x2, y2,
+                                                              x1, y1],
+                            }
+                        },
+                        brs::Direction::ZNegative => {
+                            verts = match brick.rotation {
+                                brs::Rotation::Deg0 =>   vec![x2, y1,     // Top-Right Tri
+                                                              x1, y1,
+                                                              x2, y2],
+                                brs::Rotation::Deg90 =>  vec![x1, y1,     // Top-Left Tri
+                                                              x1, y2,
+                                                              x2, y1],
+                                brs::Rotation::Deg180 => vec![x1, y2,     // Bottom-Left Tri
+                                                              x2, y2,
+                                                              x1, y1],
+                                brs::Rotation::Deg270 => vec![x2, y2,     // Bottom-Right Tri
+                                                              x2, y1,
+                                                              x1, y2],
+                            }
+                        },
+                        brs::Direction::XPositive | brs::Direction::XNegative | brs::Direction::YPositive | brs::Direction::YNegative => {
+                            // SideWedge is rendered like a rectangle when sideways
+                            verts = vec![x1, y1, // Top-Left Tri (CCW)
+                                         x1, y2,
+                                         x2, y1,
+                                         x2, y2, // Bottom-Right Tri (CCW)
+                                         x2, y1,
+                                         x1, y2];
+                            shape_type = ShapeType::Rect;
                         }
-                    },
-                    brs::Direction::XPositive | brs::Direction::XNegative | brs::Direction::YPositive | brs::Direction::YNegative => {
-                        // Wedge is rendered like a rectangle when sideways
-                        verts = vec![
-                            x1, y1, // Top-Left Tri (CCW)
-                            x1, y2,
-                            x2, y1,
-                            x2, y2, // Bottom-Right Tri (CCW)
-                            x2, y1,
-                            x1, y2
-                        ];
-                        shape_type = ShapeType::Rect;
                     }
+                },
+                "PB_DefaultWedge" => {
+                    verts = vec![x1, y1, // Top-Left Tri (CCW)
+                                 x1, y2,
+                                 x2, y1,
+                                 x2, y2, // Bottom-Right Tri (CCW)
+                                 x2, y1,
+                                 x1, y2];
+                    shape_type = ShapeType::Rect;
+                },
+                _ => {
+                    verts = vec![x1, y1, // Top-Left Tri (CCW)
+                                 x1, y2,
+                                 x2, y1,
+                                 x2, y2, // Bottom-Right Tri (CCW)
+                                 x2, y1,
+                                 x1, y2];
+                    shape_type = ShapeType::Rect;
                 }
-            } else {
-                verts = vec![
-                    x1, y1, // Top-Left Tri (CCW)
-                    x1, y2,
-                    x2, y1,
-                    x2, y2, // Bottom-Right Tri (CCW)
-                    x2, y1,
-                    x1, y2
-                ];
-                shape_type = ShapeType::Rect;
-            }
+            };
 
             // Add shape to save
             let shape = Shape {
@@ -213,7 +200,7 @@ impl JsSave {
                 shape_type,
                 color: brick_color,
             };
-            self.shapes.push(shape);
+            self.shapes.append(&mut shape.get_vertex_array());
 
             // Add to Centroid calculation sums
             let area = brick.size.0 * brick.size.1;
