@@ -39,13 +39,15 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         Err(_e) => return Err(JsValue::from("Error reading bricks")),
     };
     let assets = reader.brick_assets().to_vec();
+    let (rendering_context, uniform_location) = webgl::get_rendering_context();
     Ok(JsSave {
         reader,
         bricks: bricks
             .filter_map(Result::ok)
             .collect(),
         brick_assets: assets,
-        context: webgl::get_rendering_context().unwrap(),
+        context: rendering_context.unwrap(),
+        u_matrix: uniform_location.unwrap(),
         colors: Vec::new(),
         center: Point {x:0.0, y:0.0},
         shapes: Vec::new(),

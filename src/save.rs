@@ -3,7 +3,7 @@ use crate::webgl;
 use crate::graphics::*;
 
 use brs::{HasHeader1, HasHeader2, Direction, Rotation};
-use web_sys::WebGlRenderingContext;
+use web_sys::{WebGlRenderingContext, WebGlUniformLocation};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -16,6 +16,8 @@ pub struct JsSave {
     pub brick_assets: Vec<String>,
     #[wasm_bindgen(skip)]
     pub context: WebGlRenderingContext,
+    #[wasm_bindgen(skip)]
+    pub u_matrix: WebGlUniformLocation,
     #[wasm_bindgen(skip)]
     pub colors: Vec<Color>,
     #[wasm_bindgen(skip)]
