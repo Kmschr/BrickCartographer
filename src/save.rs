@@ -113,91 +113,61 @@ impl JsSave {
             let y2: f32 = (brick.position.1 + brick.size.1 as i32) as f32;
 
             let verts;
-            let mut shape_type = ShapeType::Tri;
 
             // Calculate Shape vertices
-            log(name);
-
-            match name.as_str() {
-                "PB_DefaultBrick" => {
-                    verts = vec![x1, y1, // Top-Left Tri (CCW)
-                                 x1, y2,
-                                 x2, y1,
-                                 x2, y2, // Bottom-Right Tri (CCW)
-                                 x2, y1,
-                                 x1, y2];
-                    shape_type = ShapeType::Rect;
-                },
+            verts = match name.as_str() {
+                "PB_DefaultBrick" => 
+                    get_rect(x1, y1, x2, y2),
                 "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" => {
                     match brick.direction {
-                        brs::Direction::ZPositive => { 
-                            verts = match brick.rotation {
-                                brs::Rotation::Deg0 =>   vec![x1, y1,    // Top-Left Tri
-                                                              x1, y2,
-                                                              x2, y1],
-                                brs::Rotation::Deg90 =>  vec![x2, y1,   // Top-Right Tri
-                                                              x1, y1,
-                                                              x2, y2],
-                                brs::Rotation::Deg180 => vec![x2, y2,  // Bottom-Right Tri
-                                                              x2, y1,
-                                                              x1, y2],
-                                brs::Rotation::Deg270 => vec![x1, y2,     // Bottom-Left Tri
-                                                              x2, y2,
-                                                              x1, y1],
-                            }
-                        },
-                        brs::Direction::ZNegative => {
-                            verts = match brick.rotation {
-                                brs::Rotation::Deg0 =>   vec![x2, y1,     // Top-Right Tri
-                                                              x1, y1,
-                                                              x2, y2],
-                                brs::Rotation::Deg90 =>  vec![x1, y1,     // Top-Left Tri
-                                                              x1, y2,
-                                                              x2, y1],
-                                brs::Rotation::Deg180 => vec![x1, y2,     // Bottom-Left Tri
-                                                              x2, y2,
-                                                              x1, y1],
-                                brs::Rotation::Deg270 => vec![x2, y2,     // Bottom-Right Tri
-                                                              x2, y1,
-                                                              x1, y2],
-                            }
-                        },
-                        brs::Direction::XPositive | brs::Direction::XNegative | brs::Direction::YPositive | brs::Direction::YNegative => {
-                            // SideWedge is rendered like a rectangle when sideways
-                            verts = vec![x1, y1, // Top-Left Tri (CCW)
-                                         x1, y2,
-                                         x2, y1,
-                                         x2, y2, // Bottom-Right Tri (CCW)
-                                         x2, y1,
-                                         x1, y2];
-                            shape_type = ShapeType::Rect;
-                        }
+                        Direction::ZPositive => 
+                            match brick.rotation {
+                                Rotation::Deg0 => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
+                                Rotation::Deg90 => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
+                                Rotation::Deg180 => get_triangle(Triangle::BotRight, x1, y1, x2, y2),
+                                Rotation::Deg270 => get_triangle(Triangle::BotLeft, x1, y1, x2, y2)
+                            },
+                        Direction::ZNegative =>
+                            match brick.rotation {
+                                Rotation::Deg0 => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
+                                Rotation::Deg90 => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
+                                Rotation::Deg180 => get_triangle(Triangle::BotLeft, x1, y1, x2, y2),
+                                Rotation::Deg270 => get_triangle(Triangle::BotRight, x1, y1, x2, y2)
+                            },
+                        Direction::XPositive | Direction::XNegative | Direction::YPositive | Direction::YNegative => 
+                            get_rect(x1, y1, x2, y2),
                     }
                 },
                 "PB_DefaultWedge" => {
-                    verts = vec![x1, y1, // Top-Left Tri (CCW)
-                                 x1, y2,
-                                 x2, y1,
-                                 x2, y2, // Bottom-Right Tri (CCW)
-                                 x2, y1,
-                                 x1, y2];
-                    shape_type = ShapeType::Rect;
+                    match brick.rotation {
+                        Rotation::Deg0 | Rotation::Deg180 => 
+                            get_rect(x1, y1, x2, y2),
+                        Rotation::Deg90 =>
+                            match brick.direction {
+                                Direction::XPositive => get_triangle(Triangle::BotLeft, x1, y1, x2, y2),
+                                Direction::XNegative => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
+                                Direction::YPositive => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
+                                Direction::YNegative => get_triangle(Triangle::BotRight, x1, y1, x2, y2),
+                                Direction::ZPositive | Direction::ZNegative =>
+                                    get_rect(x1, y1, x2, y2),
+                            },
+                        Rotation::Deg270 =>
+                            match brick.direction {
+                                Direction::XPositive => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
+                                Direction::XNegative => get_triangle(Triangle::BotRight, x1, y1, x2, y2),
+                                Direction::YPositive => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
+                                Direction::YNegative => get_triangle(Triangle::BotLeft, x1, y1, x2, y2),
+                                Direction::ZPositive | Direction::ZNegative =>
+                                    get_rect(x1, y1, x2, y2),
+                            }
+                    }
                 },
-                _ => {
-                    verts = vec![x1, y1, // Top-Left Tri (CCW)
-                                 x1, y2,
-                                 x2, y1,
-                                 x2, y2, // Bottom-Right Tri (CCW)
-                                 x2, y1,
-                                 x1, y2];
-                    shape_type = ShapeType::Rect;
-                }
+                _ => get_rect(x1, y1, x2, y2),
             };
 
             // Add shape to save
             let shape = Shape {
                 vertices: verts,
-                shape_type,
                 color: brick_color,
             };
             self.shapes.append(&mut shape.get_vertex_array());

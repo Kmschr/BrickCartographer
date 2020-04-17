@@ -8,7 +8,6 @@ use crate::log;
 
 mod glsl;
 mod m3;
-mod brick_renders;
 
 //const MAX_BRICK_DISTANCE: i32 = 10 * 10000;
 

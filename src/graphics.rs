@@ -11,21 +11,49 @@ pub struct Rect {
     pub height: f32,
 }
 
+pub enum Triangle {
+    TopLeft,
+    TopRight,
+    BotLeft,
+    BotRight
+}
+
+pub fn get_triangle(tri_type: Triangle, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<f32> {
+    match tri_type {
+        Triangle::TopLeft =>  vec![x1, y1,
+                                   x1, y2,
+                                   x2, y1],
+        Triangle::TopRight => vec![x2, y1,
+                                   x1, y1,
+                                   x2, y2],
+        Triangle::BotRight => vec![x2, y2,
+                                   x2, y1,
+                                   x1, y2],
+        Triangle::BotLeft =>  vec![x1, y2,
+                                   x2, y2,
+                                   x1, y1],
+    }
+}
+
+pub fn get_rect(x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<f32> {
+    vec![x1, y1, // Top-Left Tri (CCW)
+         x1, y2,
+         x2, y1,
+         x2, y2, // Bottom-Right Tri (CCW)
+         x2, y1,
+         x1, y2]
+}
+
 #[derive(Debug)]
 pub struct Shape {
     pub vertices: Vec<f32>,
-    pub shape_type: ShapeType,
     pub color: Color
 }
 
 impl Shape {
     pub fn get_vertex_array(&self) -> Vec<f32> {
         let mut vertex_array = Vec::new();
-
-        let vertex_count = match self.shape_type {
-            ShapeType::Rect => 6,
-            ShapeType::Tri => 3
-        };
+        let vertex_count = self.vertices.len() / 2;
 
         for i in 0..vertex_count {
             vertex_array.push(self.vertices[i*2]);
@@ -37,12 +65,6 @@ impl Shape {
 
         vertex_array
     }
-}
-
-#[derive(Debug)]
-pub enum ShapeType {
-    Rect,
-    Tri
 }
 
 #[derive(Debug)]
