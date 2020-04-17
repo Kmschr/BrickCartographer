@@ -134,7 +134,6 @@ export default class Atlas extends Component {
                             <li>Certain saves will not load (e.g: Brickadia City) due to error w/ brs-rs</li>
                             <li>Zooming w/ mouse/shift-drag does not pan appropiately</li>
                             <li>Poor performance with saves larger than 100k bricks</li>
-                            <li>Sideways bricks load incorrectly</li>
                         </ul>
                     </Col>
                 </Row>

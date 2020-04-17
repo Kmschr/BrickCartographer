@@ -2,8 +2,9 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use std::convert::TryInto;
 use web_sys::WebGlRenderingContext;
+use crate::{JsSave};
+use crate::graphics::*;
 use crate::log;
-use crate::{JsSave, Point, Rect, Color};
 
 mod glsl;
 mod m3;
@@ -46,11 +47,11 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, show_outlines:
         glsl::FRAGMENT_SHADER_CODE,
     )?;
     let program = glsl::link_program(&gl, &vert_shader, &frag_shader)?;
+    gl.use_program(Some(&program));
 
     let position_attribute_location: u32 = gl.get_attrib_location(&program, "a_position").try_into().unwrap();
     let color_attribute_location: u32 = gl.get_attrib_location(&program, "a_color").try_into().unwrap();
     let matrix_uniform_location = gl.get_uniform_location(&program, "u_matrix");
-    //let color_uniform_location = gl.get_uniform_location(&program, "u_color");
     let vertex_buffer = gl.create_buffer().ok_or("failed to create buffer")?;
 
     gl.viewport(0, 0, size.x as i32, size.y as i32);
@@ -59,8 +60,6 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, show_outlines:
 
     gl.clear_color(0.7, 0.7, 0.7, 1.0);
     gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
-
-    gl.use_program(Some(&program));
 
     gl.vertex_attrib_pointer_with_i32(
         position_attribute_location, 
@@ -89,30 +88,58 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, show_outlines:
 
     let mut matrix = m3::projection(size.x, size.y);
     matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
+    matrix = m3::rotate(matrix, 0.0);
     matrix = m3::scale(matrix, scale, scale);
     matrix = m3::translate(matrix, offset.x, offset.y);
 
     gl.uniform_matrix3fv_with_f32_array(matrix_uniform_location.as_ref(), false, &matrix);
 
-    let visible_area = Rect {
+    let _visible_area = Rect {
         x: offset.x,
         y: offset.y,
         width: size.x / scale,
         height: size.y / scale
     };
 
-    for brick in &save.bricks {
-
-        
-
-        let name = &save.brick_assets[brick.asset_name_index as usize];
-
-        if !brick.visibility || !name.starts_with('P') {
-            continue;
-        }
-
-        let color = brick_renders::get_color(brick, &save.colors);
-        brick_renders::render_brick(gl, brick, name, color, show_outlines);
+    for shape in &save.shapes {
+        match shape.shape_type {
+            ShapeType::Rect => {
+                let mut vertex_array: [f32; 30] = [0.0; 30];
+                for i in 0..6 {
+                    vertex_array[i*5] = shape.vertices[i*2];
+                    vertex_array[i*5 + 1] = shape.vertices[i*2 + 1];
+                    vertex_array[i*5 + 2] = shape.color.r;
+                    vertex_array[i*5 + 3] = shape.color.g;
+                    vertex_array[i*5 + 4] = shape.color.b;
+                }
+                unsafe {
+                    gl.buffer_data_with_array_buffer_view(
+                        WebGlRenderingContext::ARRAY_BUFFER,
+                        &js_sys::Float32Array::view(&vertex_array),
+                        WebGlRenderingContext::DYNAMIC_DRAW
+                    );
+                }
+                gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 6);
+            },
+            ShapeType::Tri => {
+                let mut vertex_array: [f32; 15] = [0.0; 15];
+                for i in 0..3 {
+                    vertex_array[i*5] = shape.vertices[i*2];
+                    vertex_array[i*5 + 1] = shape.vertices[i*2 + 1];
+                    vertex_array[i*5 + 2] = shape.color.r;
+                    vertex_array[i*5 + 3] = shape.color.g;
+                    vertex_array[i*5 + 4] = shape.color.b;
+                }
+                unsafe {
+                    gl.buffer_data_with_array_buffer_view(
+                        WebGlRenderingContext::ARRAY_BUFFER,
+                        &js_sys::Float32Array::view(&vertex_array),
+                        WebGlRenderingContext::DYNAMIC_DRAW
+                    );
+                }
+                gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, 3);
+            }
+        };
     }
     
     Ok(())

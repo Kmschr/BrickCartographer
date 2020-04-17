@@ -4,14 +4,6 @@ const FACTOR: f32 = (259.0 * (CONTRAST + 255.0)) / (255.0 * (259.0 - CONTRAST));
 const BRIGHTNESS_MODIFIER: f32 = 1.2;
 
 #[derive(Debug)]
-pub struct Bounds<T> {
-    pub x1: T,
-    pub y1: T,
-    pub x2: T,
-    pub y2: T,
-}
-
-#[derive(Debug)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
@@ -19,8 +11,17 @@ pub struct Rect {
     pub height: f32,
 }
 
-impl Rect {
+#[derive(Debug)]
+pub struct Shape {
+    pub vertices: Vec<f32>,
+    pub shape_type: ShapeType,
+    pub color: Color
+}
 
+#[derive(Debug)]
+pub enum ShapeType {
+    Rect,
+    Tri
 }
 
 #[derive(Debug)]

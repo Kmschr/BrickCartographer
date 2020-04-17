@@ -8,7 +8,7 @@ mod webgl;
 mod graphics;
 mod save;
 
-use brs::{HasHeader1, HasHeader2};
+use brs::{HasHeader2};
 
 use wasm_bindgen::prelude::*;
 use graphics::*;
@@ -38,26 +38,16 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         Ok(v) => v,
         Err(_e) => return Err(JsValue::from("Error reading bricks")),
     };
-    let desc = reader.description().to_string();
-    let bc = reader.brick_count();
     let assets = reader.brick_assets().to_vec();
     Ok(JsSave {
         reader,
         bricks: bricks
             .filter_map(Result::ok)
             .collect(),
-        bounds: Bounds::<i32> {
-            x1: i32::max_value(), 
-            y1: i32::max_value(), 
-            x2: i32::min_value(),
-            y2: i32::min_value(),
-        },
-        description: desc,
-        brick_count: bc,
         brick_assets: assets,
         context: webgl::get_rendering_context().unwrap(),
         colors: Vec::new(),
         center: Point {x:0.0, y:0.0},
-        offset: Point {x:0.0, y:0.0},
+        shapes: Vec::new(),
     })
 }
