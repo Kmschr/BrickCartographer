@@ -99,7 +99,7 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, show_outlines:
 
     gl.viewport(0, 0, size.x as i32, size.y as i32);
 
-    gl.clear_color(0.7, 0.7, 0.7, 1.0);
+    gl.clear_color(0.8, 0.8, 0.8, 1.0);
     gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
 
     let offset = Point {
