@@ -114,13 +114,6 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32) -> Result<(), 
 
     gl.uniform_matrix3fv_with_f32_array(Some(save.u_matrix.as_ref()), false, &matrix);
 
-    let _visible_area = Rect {
-        x: offset.x,
-        y: offset.y,
-        width: size.x / scale,
-        height: size.y / scale
-    };
-
     let vertex_array = &save.shapes;
     let vertex_count = (vertex_array.len() / 5) as i32;
 

@@ -5,13 +5,9 @@ const CONTRAST: f32 = 0.0;
 const FACTOR: f32 = (259.0 * (CONTRAST + 255.0)) / (255.0 * (259.0 - CONTRAST));
 const BRIGHTNESS_MODIFIER: f32 = 1.1;
 
-#[derive(Debug)]
-pub struct Rect {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-}
+pub const STUD_WIDTH: f32 = 10.0;
+pub const STUD_HEIGHT: f32 = 12.0;
+pub const PLATE_HEIGHT: f32 = 4.0;
 
 pub enum Triangle {
     TopLeft,
@@ -41,10 +37,9 @@ pub fn get_triangle_outline(tri_type: Triangle, x1: f32, y1: f32, x2: f32, y2: f
     let d = 0.8;
     let width = x2 - x1;
     let height = y2 - y1;
-    let theta1 = height.atan2(width);
-    let theta2 = width.atan2(height);
-    let dh1 = d*theta2.tan() + d/theta1.sin();
-    let dh2 = d/theta2.tan() + d/theta2.sin();
+    let hypotenuse = (width*width + height*height).sqrt();
+    let dh1 = d*(width + hypotenuse) / height;
+    let dh2 = d*(height + hypotenuse) / width;
 
     // Outer Top Left
     let otlx = x1 - d;
@@ -201,6 +196,59 @@ pub fn get_rect_outline(x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<f32> {
     outline
 }
 
+pub fn get_corner(direction: Direction, rotation: Rotation, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<f32> {
+    match direction {
+        Direction::ZPositive =>
+            match rotation {
+                Rotation::Deg0 => {
+                    let mut corner = get_rect(x1, y1, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH);
+                    corner.append(&mut get_rect(x1, y1 + STUD_WIDTH, x1 + STUD_WIDTH, y1 + STUD_WIDTH*2.0));
+                    corner
+                },
+                Rotation::Deg90 => {
+                    let mut corner = get_rect(x1, y1, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH);
+                    corner.append(&mut get_rect(x1 + STUD_WIDTH, y1 + STUD_WIDTH, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH*2.0));
+                    corner
+                },
+                Rotation::Deg180 => {
+                    let mut corner = get_rect(x1, y1 + STUD_WIDTH, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH*2.0);
+                    corner.append(&mut get_rect(x1 + STUD_WIDTH, y1, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH));
+                    corner
+                },
+                Rotation::Deg270 => {
+                    let mut corner = get_rect(x1, y1 + STUD_WIDTH, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH*2.0);
+                    corner.append(&mut get_rect(x1, y1, x1 + STUD_WIDTH, y1 + STUD_WIDTH));
+                    corner
+                }
+            }
+        Direction::ZNegative =>
+            match rotation {
+                Rotation::Deg0 => {
+                    let mut corner = get_rect(x1, y1, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH);
+                    corner.append(&mut get_rect(x1 + STUD_WIDTH, y1 + STUD_WIDTH, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH*2.0));
+                    corner
+                },
+                Rotation::Deg90 => {
+                    let mut corner = get_rect(x1, y1, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH);
+                    corner.append(&mut get_rect(x1, y1 + STUD_WIDTH, x1 + STUD_WIDTH, y1 + STUD_WIDTH*2.0));
+                    corner
+                },
+                Rotation::Deg180 => {
+                    let mut corner = get_rect(x1, y1 + STUD_WIDTH, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH*2.0);
+                    corner.append(&mut get_rect(x1, y1, x1 + STUD_WIDTH, y1 + STUD_WIDTH));
+                    corner
+                },
+                Rotation::Deg270 => {
+                    let mut corner = get_rect(x1, y1 + STUD_WIDTH, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH*2.0);
+                    corner.append(&mut get_rect(x1 + STUD_WIDTH, y1, x1 + STUD_WIDTH*2.0, y1 + STUD_WIDTH));
+                    corner
+                }
+            }
+        _ =>
+            get_rect(x1, y1, x2, y2)
+    }
+}
+
 pub fn get_side_wedge(direction: Direction, rotation: Rotation, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<f32> {
     match direction {
         Direction::ZPositive => 
@@ -302,13 +350,13 @@ pub fn get_ramp(direction: Direction, rotation: Rotation, x1: f32, y1: f32, x2: 
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect(x1, y2 - 10.0, x2, y2);
-                    ramp_vec.append(&mut get_triangle(Triangle::BotLeft, x1, y1, x2, y2 - 10.0));
+                    let mut ramp_vec = get_rect(x1, y2 - STUD_WIDTH, x2, y2);
+                    ramp_vec.append(&mut get_triangle(Triangle::BotLeft, x1, y1, x2, y2 - STUD_WIDTH));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect(x1, y1, x2, y1 + 10.0);
-                    ramp_vec.append(&mut get_triangle(Triangle::TopLeft, x1, y1 + 10.0, x2, y2));
+                    let mut ramp_vec = get_rect(x1, y1, x2, y1 + STUD_WIDTH);
+                    ramp_vec.append(&mut get_triangle(Triangle::TopLeft, x1, y1 + STUD_WIDTH, x2, y2));
                     ramp_vec
                 }
             },
@@ -317,13 +365,13 @@ pub fn get_ramp(direction: Direction, rotation: Rotation, x1: f32, y1: f32, x2: 
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect(x1, y1, x2, y1 + 10.0);
-                    ramp_vec.append(&mut get_triangle(Triangle::TopRight, x1, y1 + 10.0, x2, y2));
+                    let mut ramp_vec = get_rect(x1, y1, x2, y1 + STUD_WIDTH);
+                    ramp_vec.append(&mut get_triangle(Triangle::TopRight, x1, y1 + STUD_WIDTH, x2, y2));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect(x1, y2 - 10.0, x2, y2);
-                    ramp_vec.append(&mut get_triangle(Triangle::BotRight, x1, y1, x2, y2 - 10.0));
+                    let mut ramp_vec = get_rect(x1, y2 - STUD_WIDTH, x2, y2);
+                    ramp_vec.append(&mut get_triangle(Triangle::BotRight, x1, y1, x2, y2 - STUD_WIDTH));
                     ramp_vec
                 }
             },
@@ -332,13 +380,13 @@ pub fn get_ramp(direction: Direction, rotation: Rotation, x1: f32, y1: f32, x2: 
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect(x1, y1, x1+10.0, y2);
-                    ramp_vec.append(&mut get_triangle(Triangle::TopLeft, x1+10.0, y1, x2, y2));
+                    let mut ramp_vec = get_rect(x1, y1, x1 + STUD_WIDTH, y2);
+                    ramp_vec.append(&mut get_triangle(Triangle::TopLeft, x1 + STUD_WIDTH, y1, x2, y2));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect(x2 - 10.0, y1, x2, y2);
-                    ramp_vec.append(&mut get_triangle(Triangle::TopRight, x1, y1, x2 - 10.0, y2));
+                    let mut ramp_vec = get_rect(x2 - STUD_WIDTH, y1, x2, y2);
+                    ramp_vec.append(&mut get_triangle(Triangle::TopRight, x1, y1, x2 - STUD_WIDTH, y2));
                     ramp_vec
                 }
             },
@@ -347,13 +395,13 @@ pub fn get_ramp(direction: Direction, rotation: Rotation, x1: f32, y1: f32, x2: 
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect(x2 - 10.0, y1, x2, y2);
-                    ramp_vec.append(&mut get_triangle(Triangle::BotRight, x1, y1, x2 - 10.0, y2));
+                    let mut ramp_vec = get_rect(x2 - STUD_WIDTH, y1, x2, y2);
+                    ramp_vec.append(&mut get_triangle(Triangle::BotRight, x1, y1, x2 - STUD_WIDTH, y2));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect(x1, y1, x1 + 10.0, y1 + 12.0);
-                    ramp_vec.append(&mut get_triangle(Triangle::BotLeft, x1 + 10.0, y1, x2, y2));
+                    let mut ramp_vec = get_rect(x1, y1, x1 + STUD_WIDTH, y1 + STUD_HEIGHT);
+                    ramp_vec.append(&mut get_triangle(Triangle::BotLeft, x1 + STUD_WIDTH, y1, x2, y2));
                     ramp_vec
                 }
             }
@@ -369,13 +417,13 @@ pub fn get_ramp_outline(direction: Direction, rotation: Rotation, x1: f32, y1: f
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect_outline(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect_outline(x1, y2 - 10.0, x2, y2);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotLeft, x1, y1, x2, y2 - 10.0));
+                    let mut ramp_vec = get_rect_outline(x1, y2 - STUD_WIDTH, x2, y2);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotLeft, x1, y1, x2, y2 - STUD_WIDTH));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect_outline(x1, y1, x2, y1 + 10.0);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopLeft, x1, y1 + 10.0, x2, y2));
+                    let mut ramp_vec = get_rect_outline(x1, y1, x2, y1 + STUD_WIDTH);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopLeft, x1, y1 + STUD_WIDTH, x2, y2));
                     ramp_vec
                 }
             },
@@ -384,13 +432,13 @@ pub fn get_ramp_outline(direction: Direction, rotation: Rotation, x1: f32, y1: f
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect_outline(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect_outline(x1, y1, x2, y1 + 10.0);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopRight, x1, y1 + 10.0, x2, y2));
+                    let mut ramp_vec = get_rect_outline(x1, y1, x2, y1 + STUD_WIDTH);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopRight, x1, y1 + STUD_WIDTH, x2, y2));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect_outline(x1, y2 - 10.0, x2, y2);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotRight, x1, y1, x2, y2 - 10.0));
+                    let mut ramp_vec = get_rect_outline(x1, y2 - STUD_WIDTH, x2, y2);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotRight, x1, y1, x2, y2 - STUD_WIDTH));
                     ramp_vec
                 }
             },
@@ -399,13 +447,13 @@ pub fn get_ramp_outline(direction: Direction, rotation: Rotation, x1: f32, y1: f
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect_outline(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect_outline(x1, y1, x1+10.0, y2);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopLeft, x1+10.0, y1, x2, y2));
+                    let mut ramp_vec = get_rect_outline(x1, y1, x1 + STUD_WIDTH, y2);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopLeft, x1+STUD_WIDTH, y1, x2, y2));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect_outline(x2 - 10.0, y1, x2, y2);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopRight, x1, y1, x2 - 10.0, y2));
+                    let mut ramp_vec = get_rect_outline(x2 - STUD_WIDTH, y1, x2, y2);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::TopRight, x1, y1, x2 - STUD_WIDTH, y2));
                     ramp_vec
                 }
             },
@@ -414,13 +462,13 @@ pub fn get_ramp_outline(direction: Direction, rotation: Rotation, x1: f32, y1: f
                 Rotation::Deg0 | Rotation::Deg180 =>
                     get_rect_outline(x1, y1, x2, y2),
                 Rotation::Deg90 => {
-                    let mut ramp_vec = get_rect_outline(x2 - 10.0, y1, x2, y2);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotRight, x1, y1, x2 - 10.0, y2));
+                    let mut ramp_vec = get_rect_outline(x2 - STUD_WIDTH, y1, x2, y2);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotRight, x1, y1, x2 - STUD_WIDTH, y2));
                     ramp_vec
                 },
                 Rotation::Deg270 => {
-                    let mut ramp_vec = get_rect_outline(x1, y1, x1 + 10.0, y1 + 12.0);
-                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotLeft, x1 + 10.0, y1, x2, y2));
+                    let mut ramp_vec = get_rect_outline(x1, y1, x1 + STUD_WIDTH, y1 + STUD_HEIGHT);
+                    ramp_vec.append(&mut get_triangle_outline(Triangle::BotLeft, x1 + STUD_WIDTH, y1, x2, y2));
                     ramp_vec
                 }
             }

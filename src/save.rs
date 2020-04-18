@@ -49,10 +49,59 @@ impl JsSave {
 
         // Modify brick dimensions to reflect orientation transforms
         for brick in &mut self.bricks {
-            // Ignore bricks we don't know how to render yet (non-procedural)
+            if !brick.visibility {
+                continue;
+            }
+
             let name = &self.brick_assets[brick.asset_name_index as usize];
-            if !brick.visibility || !name.starts_with('P') {
-              continue;
+
+            // Give size to non procedural bricks
+            match name.as_str() {
+                "B_2x2_Corner" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = STUD_WIDTH as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
+                "B_2x_Cube_Side" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = STUD_WIDTH as u32;
+                    brick.size.2 = STUD_HEIGHT as u32;
+                },
+                "B_1x1_Brick_Side" => {
+                    brick.size.0 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
+                "B_1x4_Brick_Side" => {
+                    brick.size.0 = (STUD_WIDTH*2.0) as u32;
+                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
+                "B_1x2f_Plate_Center" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
+                "B_2x2f_Plate_Center" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = STUD_WIDTH as u32;
+                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
+                },
+                "B_1x2f_Plate_Center_Inv" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
+                "B_2x2f_Plate_Center_Inv" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = STUD_WIDTH as u32;
+                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
+                },
+                _ => ()
+            }
+
+            if name == "B_2x2_Corner" {
+                
             }
 
             // Apply Rotation
@@ -82,11 +131,11 @@ impl JsSave {
         
         // Calculate shapes for rendering and save Centroid
         for brick in &self.bricks {
-            // Ignore bricks we don't know how to render yet (non-procedural)
-            let name = &self.brick_assets[brick.asset_name_index as usize];
-            if !brick.visibility || !name.starts_with('P') {
+            if !brick.visibility {
                 continue;
             }
+
+            let name = &self.brick_assets[brick.asset_name_index as usize];
 
             // Check if save is incompatible, which can usually be determined by brick owner index being out of bounds
             let brick_owner_oob = brick.owner_index as usize > self.reader.brick_owners().len();
@@ -122,6 +171,8 @@ impl JsSave {
             let verts = match name.as_str() {
                 "PB_DefaultBrick" => 
                     get_rect(x1, y1, x2, y2),
+                "B_2x2_Corner" =>
+                    get_corner(brick.direction, brick.rotation, x1, y1, x2, y2),
                 "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
                     get_side_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
                 "PB_DefaultWedge" =>
