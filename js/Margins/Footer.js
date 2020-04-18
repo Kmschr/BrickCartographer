@@ -16,7 +16,7 @@ export default class Footer extends Component {
                     <Container>
                         <div className="centered">
                             {linkStatusSymbol}
-                            Made by Kmschr (Smallguy)
+                            Made by <a href="https://github.com/Kmschr">Kmschr</a> (Smallguy)
                         </div>
                     </Container>
                 </div>

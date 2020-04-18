@@ -188,22 +188,6 @@ export default class Atlas extends Component {
                             <Input type='file' name='file' onChange={this.loadFile}/>
                         </p>
                         <br/>
-                        <h2>Planned Features</h2>
-                        <ul>
-                            <li>Map rotation</li>
-                            <li>Default save</li>
-                            <li>Chunk rendering for improved performance</li>
-                            <li>PNG exporting</li>
-                            <li>Altitude cutoff for viewing inside structures</li>
-                            <li>Color adjustment options</li>
-                        </ul>
-                        <h2>Known Issues</h2>
-                        <ul>
-                            <li>Certain saves will not load (e.g: Brickadia City) due to error w/ brs-rs</li>
-                            <li>Zooming w/ mouse/shift-drag does not pan appropiately</li>
-                            <li>Many unsupported bricks</li>
-                            <li>Incorrect outlines on certain bricks</li>
-                        </ul>
                     </Col>
                 </Row>
             </Container>
