@@ -93,7 +93,7 @@ pub fn get_rendering_context() -> (Option<WebGlRenderingContext>, Option<WebGlUn
     (Some(gl), matrix_uniform_location)
 }
 
-pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, show_outlines: bool) -> Result<(), JsValue> {
+pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32) -> Result<(), JsValue> {
     let gl = &save.context;
 
     gl.viewport(0, 0, size.x as i32, size.y as i32);

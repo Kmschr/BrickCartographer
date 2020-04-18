@@ -22,6 +22,7 @@ export default class Atlas extends Component {
         this.onDrawLayer = this.onDrawLayer.bind(this);
         this.renderOptions = this.renderOptions.bind(this);
         this.getNewPan = this.getNewPan.bind(this);
+        this.processSave = this.processSave.bind(this);
         this.state = {
             fileExtensionError: false,
             fileReadError: false,
@@ -62,7 +63,7 @@ export default class Atlas extends Component {
 
             let newPan = this.getNewPan(pane, scale);
 
-            this.state.save.render(info.canvas.width, info.canvas.height, newPan.x, newPan.y, scale, this.state.showOutlines);
+            this.state.save.render(info.canvas.width, info.canvas.height, newPan.x, newPan.y, scale);
 
             this.state.pan = newPan;
             this.state.pane.x = pane.x;
@@ -147,7 +148,8 @@ export default class Atlas extends Component {
                     this.setState({
                         showOutlines: !this.state.showOutlines
                     }, () => {
-                        this.canvas.needRedraw();
+                        this.processSave();
+                        //this.canvas.needRedraw();
                     });
                 }}>
                     Toggle brick outlines
@@ -196,23 +198,31 @@ export default class Atlas extends Component {
                 })
             )
             .then(save => {
-                try {
-                    save.process_bricks();
-                    this.setState({
-                        save: save
-                    }, () => {
-                        this.setState({loading: false});
-                        this.map.setView(L.latLng(0, 0), -2);
-                    });
-                } catch (err) {
-                    console.error(err);
-                    this.setState({
-                        loading: false,
-                        fileReadError: true,
-                        fileReadErrorMsg: err
-                    });
-                }
+                this.setState({
+                    save: save
+                }, () => {
+                    this.processSave();
+                });
             });
+    }
+
+    processSave() {
+        this.setState({
+            loading: true
+        }, () => {
+            try {
+                this.state.save.process_bricks(this.state.showOutlines);
+                this.setState({loading: false});
+                this.canvas.needRedraw();
+            } catch (err) {
+                console.error(err);
+                this.setState({
+                    loading: false,
+                    fileReadError: true,
+                    fileReadErrorMsg: err
+                });
+            }
+        });
     }
 
 }

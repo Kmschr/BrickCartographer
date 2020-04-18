@@ -11,6 +11,8 @@ pub struct JsSave {
     #[wasm_bindgen(skip)]
     pub reader: brs::read::ReaderAfterBricks,
     #[wasm_bindgen(skip)]
+    pub unmodified_bricks: Vec<brs::Brick>,
+    #[wasm_bindgen(skip)]
     pub bricks: Vec<brs::Brick>,
     #[wasm_bindgen(skip)]
     pub brick_assets: Vec<String>,
@@ -40,7 +42,11 @@ impl JsSave {
     }
 
     // Get rendering info needed from bricks
-    pub fn process_bricks(&mut self) -> Result<(), JsValue> {
+    pub fn process_bricks(&mut self, draw_outlines: bool) -> Result<(), JsValue> {
+        // Reset brick transforms
+        self.bricks = self.unmodified_bricks.clone();
+        self.shapes = Vec::new();
+
         // Modify brick dimensions to reflect orientation transforms
         for brick in &mut self.bricks {
             // Ignore bricks we don't know how to render yet (non-procedural)
@@ -112,56 +118,16 @@ impl JsSave {
             let x2: f32 = (brick.position.0 + brick.size.0 as i32) as f32;
             let y2: f32 = (brick.position.1 + brick.size.1 as i32) as f32;
 
-            let verts;
-
             // Calculate Shape vertices
-            verts = match name.as_str() {
+            let verts = match name.as_str() {
                 "PB_DefaultBrick" => 
                     get_rect(x1, y1, x2, y2),
-                "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" => {
-                    match brick.direction {
-                        Direction::ZPositive => 
-                            match brick.rotation {
-                                Rotation::Deg0 => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
-                                Rotation::Deg90 => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
-                                Rotation::Deg180 => get_triangle(Triangle::BotRight, x1, y1, x2, y2),
-                                Rotation::Deg270 => get_triangle(Triangle::BotLeft, x1, y1, x2, y2)
-                            },
-                        Direction::ZNegative =>
-                            match brick.rotation {
-                                Rotation::Deg0 => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
-                                Rotation::Deg90 => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
-                                Rotation::Deg180 => get_triangle(Triangle::BotLeft, x1, y1, x2, y2),
-                                Rotation::Deg270 => get_triangle(Triangle::BotRight, x1, y1, x2, y2)
-                            },
-                        Direction::XPositive | Direction::XNegative | Direction::YPositive | Direction::YNegative => 
-                            get_rect(x1, y1, x2, y2),
-                    }
-                },
-                "PB_DefaultWedge" => {
-                    match brick.rotation {
-                        Rotation::Deg0 | Rotation::Deg180 => 
-                            get_rect(x1, y1, x2, y2),
-                        Rotation::Deg90 =>
-                            match brick.direction {
-                                Direction::XPositive => get_triangle(Triangle::BotLeft, x1, y1, x2, y2),
-                                Direction::XNegative => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
-                                Direction::YPositive => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
-                                Direction::YNegative => get_triangle(Triangle::BotRight, x1, y1, x2, y2),
-                                Direction::ZPositive | Direction::ZNegative =>
-                                    get_rect(x1, y1, x2, y2),
-                            },
-                        Rotation::Deg270 =>
-                            match brick.direction {
-                                Direction::XPositive => get_triangle(Triangle::TopLeft, x1, y1, x2, y2),
-                                Direction::XNegative => get_triangle(Triangle::BotRight, x1, y1, x2, y2),
-                                Direction::YPositive => get_triangle(Triangle::TopRight, x1, y1, x2, y2),
-                                Direction::YNegative => get_triangle(Triangle::BotLeft, x1, y1, x2, y2),
-                                Direction::ZPositive | Direction::ZNegative =>
-                                    get_rect(x1, y1, x2, y2),
-                            }
-                    }
-                },
+                "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
+                    get_side_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
+                "PB_DefaultWedge" =>
+                    get_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
+                "PB_DefaultRamp" =>
+                    get_ramp(brick.direction, brick.rotation, x1, y1, x2, y2),
                 _ => get_rect(x1, y1, x2, y2),
             };
 
@@ -172,6 +138,22 @@ impl JsSave {
             };
             self.shapes.append(&mut shape.get_vertex_array());
 
+            if draw_outlines {
+                // Add brick outline for rendering
+                let outline_verts = match name.as_str() {
+                    "PB_DefaultBrick" =>
+                        get_rect_outline(x1, y1, x2, y2),
+                    _ =>
+                        get_rect_outline(x1, y1, x2, y2)
+                };
+
+                let outline = Shape {
+                    vertices: outline_verts,
+                    color: Color::black()
+                };
+                self.shapes.append(&mut outline.get_vertex_array());
+            }
+            
             // Add to Centroid calculation sums
             let area = brick.size.0 * brick.size.1;
             point_sum.x += (brick.position.0 * area as i32) as f32;
@@ -188,9 +170,9 @@ impl JsSave {
         Ok(())
     }
 
-    pub fn render(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, show_outlines: bool) -> Result<(), JsValue> {
+    pub fn render(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32) -> Result<(), JsValue> {
         let pan = Point { x: pan_x, y: pan_y};
         let size = Point { x: size_x as f32, y: size_y as f32};
-        webgl::render(&self, size, pan, scale, show_outlines)
+        webgl::render(&self, size, pan, scale)
     }
 }

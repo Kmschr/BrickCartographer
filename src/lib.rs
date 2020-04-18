@@ -42,9 +42,10 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
     let (rendering_context, uniform_location) = webgl::get_rendering_context();
     Ok(JsSave {
         reader,
-        bricks: bricks
+        unmodified_bricks: bricks
             .filter_map(Result::ok)
             .collect(),
+        bricks: Vec::new(),
         brick_assets: assets,
         context: rendering_context.unwrap(),
         u_matrix: uniform_location.unwrap(),
