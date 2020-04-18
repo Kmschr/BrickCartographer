@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {Col, Container, Row, Input, Spinner, Alert, Button} from 'reactstrap';
+import {Col, Container, Row, Input, Spinner, Alert, Button, CardLink} from 'reactstrap';
 import {removeFileExtension} from "../util";
 import 'leaflet/dist/leaflet.css';
 import '../mapstyle.css';
@@ -23,6 +23,8 @@ export default class Atlas extends Component {
         this.renderOptions = this.renderOptions.bind(this);
         this.getNewPan = this.getNewPan.bind(this);
         this.processSave = this.processSave.bind(this);
+        this.getFullscreenButton = this.getFullscreenButton.bind(this);
+        this.toggleFullscreen = this.toggleFullscreen.bind(this);
         this.state = {
             fileExtensionError: false,
             fileReadError: false,
@@ -30,6 +32,7 @@ export default class Atlas extends Component {
             loading: false,
             map: null,
             save: null,
+            fullscreen: false,
             showOutlines: false,
             pan: {
                 x: 0,
@@ -49,9 +52,46 @@ export default class Atlas extends Component {
             scrollWheelZoom: true
         });
 
+        L.Control.Fullscreen = L.Control.extend({
+            onAdd: this.getFullscreenButton,
+            onRemove: function(map) {
+            }
+        });
+
+        L.control.fullscreen = function(opts) {
+            return new L.Control.Fullscreen(opts);
+        }
+
+        L.control.fullscreen({ position: 'topright' }).addTo(this.map);
+
         // Add a HTMLCanvas to the Map
         this.canvas = L.canvasLayer().delegate(this);
         this.canvas.addTo(this.map);
+    }
+
+    getFullscreenButton() {
+        let button = L.DomUtil.create('input');
+        L.DomUtil.addClass(button, "fullscreen-button");
+        button.type = "button";
+        button.title = "Fullscreen";
+        button.value = "\u26f6";
+
+        button.onclick = this.toggleFullscreen;
+
+        return button;
+    }
+
+    toggleFullscreen() {
+        if (this.state.fullscreen) {
+            let mapContainer = L.DomUtil.get("map-container");
+            mapContainer.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+
+        this.setState({
+            fullscreen: !this.state.fullscreen
+        })
     }
 
     // Called upon any pan/zoom of map by canvas layer library
@@ -101,7 +141,7 @@ export default class Atlas extends Component {
             <Container>
                 <Row>
                     <Col sm={12} md={{ size: 9, offset: 0 }}>
-                        <div id='map' />
+                        <div id="map-container" className="map-container"><div id='map' /></div>
                         <SaveInfo map={this.state.map} save={this.state.save} />
                         {this.renderSpinner()}
                         <Alert color="danger" isOpen={this.state.fileExtensionError} toggle={_ => {
@@ -199,9 +239,11 @@ export default class Atlas extends Component {
             )
             .then(save => {
                 this.setState({
-                    save: save
+                    save: save,
+                    fileReadError: false,
                 }, () => {
                     this.processSave();
+                    this.map.panTo([0,0]);
                 });
             });
     }
@@ -215,7 +257,6 @@ export default class Atlas extends Component {
                 this.setState({loading: false});
                 this.canvas.needRedraw();
             } catch (err) {
-                console.error(err);
                 this.setState({
                     loading: false,
                     fileReadError: true,

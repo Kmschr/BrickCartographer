@@ -1,5 +1,21 @@
 #map {
+    bottom: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.map-container {
+    width: 100%;
     height: 600px;
+}
+
+.map-fullscreen {
+    position: absolute;
+    bottom: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
 }
 
 #saveInfo {
@@ -8,4 +24,24 @@
 
 .leaflet-container {
     background-color:rgba(204, 204, 204, 1.0);
+}
+
+.fullscreen-button {
+    border-radius: 4px;
+    display: block;
+    width: 26px; 
+    height: 26px; 
+    background-position: 50% 50%;
+    background-color: white;
+    font: bold 21px 'Lucida Console', Book, monospace;
+    text-indent: -3px;
+    box-sizing: border-box;
+    line-height: 26px;
+    border: 1px solid white;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+}
+
+.fullscreen-button:hover {
+    background-color: rgba(51, 181, 229, 0.4);
+    border: 1px solid gray;
 }

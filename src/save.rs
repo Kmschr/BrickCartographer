@@ -143,6 +143,12 @@ impl JsSave {
                 let outline_verts = match name.as_str() {
                     "PB_DefaultBrick" =>
                         get_rect_outline(x1, y1, x2, y2),
+                    "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
+                        get_side_wedge_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
+                    "PB_DefaultWedge" =>
+                        get_wedge_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
+                    "PB_DefaultRamp" =>
+                        get_ramp_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
                     _ =>
                         get_rect_outline(x1, y1, x2, y2)
                 };
