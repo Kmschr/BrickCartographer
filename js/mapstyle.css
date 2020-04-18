@@ -26,7 +26,7 @@
     background-color:rgba(204, 204, 204, 1.0);
 }
 
-.fullscreen-button {
+.map-button {
     border-radius: 4px;
     display: block;
     width: 26px; 
@@ -41,7 +41,7 @@
     box-shadow: 0 1px 5px rgba(0,0,0,0.65);
 }
 
-.fullscreen-button:hover {
+.map-button:hover {
     background-color: rgba(51, 181, 229, 0.4);
-    border: 1px solid gray;
+    border: 1px solid rgba(51, 181, 229, 0.4);
 }

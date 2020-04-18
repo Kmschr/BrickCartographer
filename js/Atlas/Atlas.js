@@ -11,6 +11,9 @@ const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
 const MAP_ZOOM_MIN = -5;
 
+const FULLSCREEN_SYMBOL = "\u26F6";
+const BRICK_OUTLINE_SYMBOL = "\u25A6";
+
 const wasm = import('../../pkg');
 
 export default class Atlas extends Component {
@@ -20,11 +23,12 @@ export default class Atlas extends Component {
         this.loadFile = this.loadFile.bind(this);
         this.loadFileWASM = this.loadFileWASM.bind(this);
         this.onDrawLayer = this.onDrawLayer.bind(this);
-        this.renderOptions = this.renderOptions.bind(this);
         this.getNewPan = this.getNewPan.bind(this);
         this.processSave = this.processSave.bind(this);
         this.getFullscreenButton = this.getFullscreenButton.bind(this);
         this.toggleFullscreen = this.toggleFullscreen.bind(this);
+        this.getBrickOutlineButton = this.getBrickOutlineButton.bind(this);
+        this.toggleBrickOutlines = this.toggleBrickOutlines.bind(this);
         this.state = {
             fileExtensionError: false,
             fileReadError: false,
@@ -34,6 +38,7 @@ export default class Atlas extends Component {
             save: null,
             fullscreen: false,
             showOutlines: false,
+            outlineButtonSymbol: BRICK_OUTLINE_SYMBOL,
             pan: {
                 x: 0,
                 y: 0
@@ -49,20 +54,22 @@ export default class Atlas extends Component {
             zoom: MAP_ZOOM_DEFAULT,
             minZoom: MAP_ZOOM_MIN,
             attributionControl: false,
-            scrollWheelZoom: true
+            scrollWheelZoom: true,
+            doubleClickZoom: false,
         });
 
-        L.Control.Fullscreen = L.Control.extend({
-            onAdd: this.getFullscreenButton,
-            onRemove: function(map) {
-            }
-        });
-
+        // Add Fullscreen button
+        L.Control.Fullscreen = L.Control.extend({ onAdd: this.getFullscreenButton });
         L.control.fullscreen = function(opts) {
             return new L.Control.Fullscreen(opts);
         }
-
         L.control.fullscreen({ position: 'topright' }).addTo(this.map);
+
+        L.Control.BrickOutline = L.Control.extend({ onAdd: this.getBrickOutlineButton });
+        L.control.brickOutline = function(opts) {
+            return new L.Control.BrickOutline(opts);
+        }
+        L.control.brickOutline({ position: 'bottomleft' }).addTo(this.map);
 
         // Add a HTMLCanvas to the Map
         this.canvas = L.canvasLayer().delegate(this);
@@ -71,10 +78,10 @@ export default class Atlas extends Component {
 
     getFullscreenButton() {
         let button = L.DomUtil.create('input');
-        L.DomUtil.addClass(button, "fullscreen-button");
+        L.DomUtil.addClass(button, "map-button");
         button.type = "button";
         button.title = "Fullscreen";
-        button.value = "\u26f6";
+        button.value = FULLSCREEN_SYMBOL;
 
         button.onclick = this.toggleFullscreen;
 
@@ -82,9 +89,9 @@ export default class Atlas extends Component {
     }
 
     toggleFullscreen() {
-        if (this.state.fullscreen) {
+        if (!this.state.fullscreen) {
             let mapContainer = L.DomUtil.get("map-container");
-            mapContainer.requestFullscreen();
+            mapContainer.requestFullscreen()
         } else {
             document.exitFullscreen();
         }
@@ -92,6 +99,28 @@ export default class Atlas extends Component {
         this.setState({
             fullscreen: !this.state.fullscreen
         })
+    }
+
+    getBrickOutlineButton() {
+        let button = L.DomUtil.create('input');
+        L.DomUtil.addClass(button, "map-button");
+        button.type = "button";
+        button.title = "Toggle Brick Outlines";
+        button.value = BRICK_OUTLINE_SYMBOL;
+
+        button.onclick = this.toggleBrickOutlines;
+
+        return button;
+    }
+
+    toggleBrickOutlines() {
+        if (this.state.save) {
+            this.setState({
+                showOutlines: !this.state.showOutlines
+            }, () => {
+                this.processSave();
+            });
+        }
     }
 
     // Called upon any pan/zoom of map by canvas layer library
@@ -154,7 +183,6 @@ export default class Atlas extends Component {
                         }}>
                             {this.state.fileReadErrorMsg}
                         </Alert>
-                        {this.renderOptions()}
                         <p className="mt-2">
                             Load Brickadia Save:
                             <Input type='file' name='file' onChange={this.loadFile}/>
@@ -162,7 +190,6 @@ export default class Atlas extends Component {
                         <br/>
                         <h2>Planned Features</h2>
                         <ul>
-                            <li>Fullscreen mode</li>
                             <li>Map rotation</li>
                             <li>Default save</li>
                             <li>Chunk rendering for improved performance</li>
@@ -179,23 +206,6 @@ export default class Atlas extends Component {
                 </Row>
             </Container>
         )
-    }
-
-    renderOptions() {
-        if (this.state.save) {
-            return (
-                <Button color="success" onClick={() => {
-                    this.setState({
-                        showOutlines: !this.state.showOutlines
-                    }, () => {
-                        this.processSave();
-                        //this.canvas.needRedraw();
-                    });
-                }}>
-                    Toggle brick outlines
-                </Button>
-            )
-        }
     }
 
     renderSpinner() {
