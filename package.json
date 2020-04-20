@@ -4,7 +4,7 @@
   "description": "Brickadia mapping tool",
   "author": "Kmschr <Kmschr@gmail.com>",
   "scripts": {
-    "build": "wasm-pack build && cross-env webpack --config ./webpack.prod.config.js --progress --colors && cp index.html dist/public",
+    "build": "wasm-pack build && npm i && cross-env webpack --config ./webpack.prod.config.js --progress --colors && cp index.html dist/public",
     "dev": "cross-env webpack-dev-server --config ./webpack.dev.config.js"
   },
   "dependencies": {

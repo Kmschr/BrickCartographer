@@ -4,15 +4,17 @@ extern crate web_sys;
 extern crate wasm_bindgen;
 
 mod webgl;
-//mod render_2d;
 mod graphics;
+mod bricks;
 mod save;
+mod color;
 
 use brs::{HasHeader2};
 
 use wasm_bindgen::prelude::*;
 use graphics::*;
 use save::JsSave;
+use color::Color;
 
 #[wasm_bindgen]
 extern "C" {
@@ -51,6 +53,6 @@ pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
         u_matrix: uniform_location.unwrap(),
         colors: Vec::new(),
         center: Point {x:0.0, y:0.0},
-        shapes: Vec::new(),
+        vertex_buffer: Vec::new(),
     })
 }

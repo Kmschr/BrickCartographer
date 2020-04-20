@@ -6,6 +6,5 @@ Brick Cartographer is a fan-made tool for mapping savefiles for [Brickadia](http
 ## Building
 requires wasm-pack and npm
 ```
-npm i
 npm run build
 ```

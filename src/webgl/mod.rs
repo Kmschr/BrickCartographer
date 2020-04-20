@@ -114,7 +114,7 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32) -> Result<(), 
 
     gl.uniform_matrix3fv_with_f32_array(Some(save.u_matrix.as_ref()), false, &matrix);
 
-    let vertex_array = &save.shapes;
+    let vertex_array = &save.vertex_buffer;
     let vertex_count = (vertex_array.len() / 5) as i32;
 
     unsafe {

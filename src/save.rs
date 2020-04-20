@@ -1,6 +1,8 @@
 use crate::log;
 use crate::webgl;
+use crate::color::*;
 use crate::graphics::*;
+use crate::bricks::*;
 
 use std::collections::HashSet;
 use brs::{HasHeader1, HasHeader2, Direction, Rotation};
@@ -33,7 +35,7 @@ pub struct JsSave {
     #[wasm_bindgen(skip)]
     pub center: Point,
     #[wasm_bindgen(skip)]
-    pub shapes: Vec<f32>,
+    pub vertex_buffer: Vec<f32>,
 }
 
 #[wasm_bindgen]
@@ -52,12 +54,12 @@ impl JsSave {
 
     // Get rendering info needed from bricks
     #[wasm_bindgen(js_name = processBricks)]
-    pub fn process_bricks(&mut self, draw_outlines: bool, draw_fills: bool) -> Result<(), JsValue> {
+    pub fn process_bricks(&mut self, draw_ols: bool, draw_fills: bool) -> Result<(), JsValue> {
         let mut compatible = true;
 
         // Reset brick transforms
         self.bricks = self.unmodified_bricks.clone();
-        self.shapes = Vec::new();
+        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * 5);
 
         // Modify brick dimensions to reflect orientation transforms
         for brick in &mut self.bricks {
@@ -193,52 +195,56 @@ impl JsSave {
             }
 
             // Add brick as shape for rendering
-            let x1: f32 = (brick.position.0 - brick.size.0 as i32) as f32;
-            let y1: f32 = (brick.position.1 - brick.size.1 as i32) as f32;
-            let x2: f32 = (brick.position.0 + brick.size.0 as i32) as f32;
-            let y2: f32 = (brick.position.1 + brick.size.1 as i32) as f32;
+            let shape = Shape {
+                x1: (brick.position.0 - brick.size.0 as i32) as f32,
+                y1: (brick.position.1 - brick.size.1 as i32) as f32,
+                x2: (brick.position.0 + brick.size.0 as i32) as f32,
+                y2: (brick.position.1 + brick.size.1 as i32) as f32
+            };
+
+            log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
 
             if draw_fills {
                 // Calculate Shape vertices
                 let verts = match name.as_str() {
                     "B_2x2_Corner" =>
-                        get_corner(brick.direction, brick.rotation, x1, y1, x2, y2),
+                        get_corner(brick.direction, brick.rotation, &shape),
                     "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                        get_side_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
+                        get_side_wedge(brick.direction, brick.rotation, &shape),
                     "PB_DefaultWedge" =>
-                        get_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
+                        get_wedge(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRamp" =>
-                        get_ramp(brick.direction, brick.rotation, x1, y1, x2, y2),
+                        get_ramp(brick.direction, brick.rotation, &shape),
                     _ => 
-                        get_rect(x1, y1, x2, y2).to_vec(),
+                        rec(&shape),
                 };
 
                 // Add shape to save
-                let shape = Shape {
+                let fill = RenderObject {
                     vertices: verts,
                     color: brick_color,
                 };
-                self.shapes.append(&mut shape.get_vertex_array());
+                self.vertex_buffer.append(&mut fill.get_vertex_array());
             }
             
-            if draw_outlines {
+            if draw_ols {
                 // Add brick outline for rendering
-                let outline_verts = match name.as_str() {
+                let ol_verts = match name.as_str() {
                     "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                        get_side_wedge_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
+                        get_side_wedge_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultWedge" =>
-                        get_wedge_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
+                        get_wedge_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRamp" =>
-                        get_ramp_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
+                        get_ramp_ol(brick.direction, brick.rotation, &shape),
                     _ =>
-                        get_rect_outline(x1, y1, x2, y2).to_vec()
+                        rec_ol(&shape)
                 };
 
-                let outline = Shape {
-                    vertices: outline_verts,
+                let outline = RenderObject {
+                    vertices: ol_verts,
                     color: Color::black()
                 };
-                self.shapes.append(&mut outline.get_vertex_array());
+                self.vertex_buffer.append(&mut outline.get_vertex_array());
             }
             
             // Add to Centroid calculation sums
