@@ -4,7 +4,7 @@
   "description": "Brickadia mapping tool",
   "author": "Kmschr <Kmschr@gmail.com>",
   "scripts": {
-    "build": "cross-env webpack --config ./webpack.prod.config.js --progress --colors && cp index.html dist/public",
+    "build": "wasm-pack build && cross-env webpack --config ./webpack.prod.config.js --progress --colors && cp index.html dist/public",
     "dev": "cross-env webpack-dev-server --config ./webpack.dev.config.js"
   },
   "dependencies": {
@@ -15,11 +15,11 @@
     "babel-preset-env": "^1.7.0",
     "babel-preset-react": "^6.24.1",
     "bootstrap": "^4.4.1",
-    "brs-js": "^1.1.15",
     "cross-env": "^7.0.2",
     "css-loader": "^3.4.2",
     "file-loader": "^6.0.0",
     "leaflet": "^1.6.0",
+    "leaflet-easybutton": "^2.4.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-leaflet": "^2.6.3",

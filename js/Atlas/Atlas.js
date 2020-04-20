@@ -4,12 +4,12 @@ import {removeFileExtension} from "../util";
 import 'leaflet/dist/leaflet.css';
 import '../mapstyle.css';
 import './L.CanvasLayer';
-import 'brs-js';
+import './EasyButton/easy-button';
 import SaveInfo from "./SaveInfo";
 
 const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
-const MAP_ZOOM_MIN = -5;
+const MAP_ZOOM_MIN = -6;
 
 const FULLSCREEN_SYMBOL = "\u26F6";
 const BRICK_OUTLINE_SYMBOL = "\u25A6";
@@ -24,26 +24,23 @@ export default class Atlas extends Component {
         this.loadFileWASM = this.loadFileWASM.bind(this);
         this.onDrawLayer = this.onDrawLayer.bind(this);
         this.getNewPan = this.getNewPan.bind(this);
+        this.resetPan = this.resetPan.bind(this);
         this.processSave = this.processSave.bind(this);
-        this.getFullscreenButton = this.getFullscreenButton.bind(this);
         this.toggleFullscreen = this.toggleFullscreen.bind(this);
-        this.getBrickOutlineButton = this.getBrickOutlineButton.bind(this);
         this.toggleBrickOutlines = this.toggleBrickOutlines.bind(this);
+        this.toggleBrickFill = this.toggleBrickFill.bind(this);
         this.state = {
-            fileExtensionError: false,
-            fileReadError: false,
-            fileReadErrorMsg: null,
+            fileError: false,
+            fileErrorMsg: null,
             loading: false,
             map: null,
             save: null,
             fullscreen: false,
             showOutlines: false,
-            outlineButtonSymbol: BRICK_OUTLINE_SYMBOL,
-            pan: {
-                x: 0,
-                y: 0
-            }
+            fillBricks: true,
         };
+
+        this.resetPan();
     }
 
     componentDidMount() {
@@ -58,34 +55,45 @@ export default class Atlas extends Component {
             doubleClickZoom: false,
         });
 
-        // Add Fullscreen button
-        L.Control.Fullscreen = L.Control.extend({ onAdd: this.getFullscreenButton });
-        L.control.fullscreen = function(opts) {
-            return new L.Control.Fullscreen(opts);
-        }
-        L.control.fullscreen({ position: 'topright' }).addTo(this.map);
+        L.easyButton({
+            position: 'topright',
+            states: [{
+                icon: '<i class="fas fa-expand map-button"></i>',
+                title: 'Fullscreen',
+                onClick: this.toggleFullscreen
+            }]
+        }).addTo(this.map);
 
-        L.Control.BrickOutline = L.Control.extend({ onAdd: this.getBrickOutlineButton });
-        L.control.brickOutline = function(opts) {
-            return new L.Control.BrickOutline(opts);
-        }
-        L.control.brickOutline({ position: 'bottomleft' }).addTo(this.map);
+        L.easyButton({
+            position: 'topleft',
+            states: [{
+                icon: '<i class="fas fa-border-style map-button"></i>',
+                title: 'Toggle Brick Outlines',
+                onClick: this.toggleBrickOutlines
+            }]
+        }).addTo(this.map);
+
+        L.easyButton({
+            position: 'topleft',
+            states: [{
+                icon: '<i class="fas fa-fill map-button"></i>',
+                title: 'Toggle Brick Fill',
+                onClick: this.toggleBrickFill
+            }]
+          }).addTo(this.map);
+
+        L.easyButton({
+            position: 'bottomleft',
+            states: [{
+                icon: '<i class="fas fa-file-upload map-button"></i>',
+                title: 'Load Save',
+                onClick: this.clickFileInput
+            }]
+        }).addTo(this.map);
 
         // Add a HTMLCanvas to the Map
         this.canvas = L.canvasLayer().delegate(this);
         this.canvas.addTo(this.map);
-    }
-
-    getFullscreenButton() {
-        let button = L.DomUtil.create('input');
-        L.DomUtil.addClass(button, "map-button");
-        button.type = "button";
-        button.title = "Fullscreen";
-        button.value = FULLSCREEN_SYMBOL;
-
-        button.onclick = this.toggleFullscreen;
-
-        return button;
     }
 
     toggleFullscreen() {
@@ -101,18 +109,6 @@ export default class Atlas extends Component {
         })
     }
 
-    getBrickOutlineButton() {
-        let button = L.DomUtil.create('input');
-        L.DomUtil.addClass(button, "map-button");
-        button.type = "button";
-        button.title = "Toggle Brick Outlines";
-        button.value = BRICK_OUTLINE_SYMBOL;
-
-        button.onclick = this.toggleBrickOutlines;
-
-        return button;
-    }
-
     toggleBrickOutlines() {
         if (this.state.save) {
             this.setState({
@@ -120,6 +116,16 @@ export default class Atlas extends Component {
             }, () => {
                 this.processSave();
             });
+        }
+    }
+
+    toggleBrickFill() {
+        if (this.state.save) {
+            this.setState({
+                fillBricks: !this.state.fillBricks
+            }, () => {
+                this.processSave();
+            })
         }
     }
 
@@ -165,6 +171,14 @@ export default class Atlas extends Component {
         };
     }
 
+    resetPan() {
+        this.state.pane = null;
+        this.state.pan = {
+            x: 0,
+            y: 0
+        };
+    }
+
     render() {
         return (
             <Container>
@@ -173,21 +187,12 @@ export default class Atlas extends Component {
                         <div id="map-container" className="map-container"><div id='map' /></div>
                         <SaveInfo map={this.state.map} save={this.state.save} />
                         {this.renderSpinner()}
-                        <Alert color="danger" isOpen={this.state.fileExtensionError} toggle={_ => {
-                            this.setState({ fileExtensionError: false })
+                        <Alert color="danger" isOpen={this.state.fileError} toggle={_ => {
+                            this.setState({fileError: false})
                         }}>
-                            File must be Brickadia save format (.brs)
+                            {this.state.fileErrorMsg}
                         </Alert>
-                        <Alert color="danger" isOpen={this.state.fileReadError} toggle={_ => {
-                            this.setState({fileReadError: false})
-                        }}>
-                            {this.state.fileReadErrorMsg}
-                        </Alert>
-                        <p className="mt-2">
-                            Load Brickadia Save:
-                            <Input type='file' name='file' onChange={this.loadFile}/>
-                        </p>
-                        <br/>
+                        <Input type='file' name='file' id='file' onChange={this.loadFile}/>
                     </Col>
                 </Row>
             </Container>
@@ -202,19 +207,26 @@ export default class Atlas extends Component {
         }
     }
 
+    clickFileInput() {
+        var fileInput = document.getElementById('file');
+        if(fileInput)
+             fileInput.click();
+    }
+
     loadFile(event) {
         let file = event.target.files[0];
         let extension = file.name.split('.').pop();
 
         if (extension !== 'brs') {
             this.setState({
-                fileExtensionError: true
+                fileError: true,
+                fileErrorMsg: "File must be Brickadia save format (.brs)"
             });
             return;
         }
 
         this.setState({
-            fileExtensionError: false,
+            fileError: false,
             loading: true,
             map: removeFileExtension(file.name)
         }, () => {
@@ -226,40 +238,42 @@ export default class Atlas extends Component {
         file.arrayBuffer()
             .then(buff => new Uint8Array(buff))
             .then(buff =>
-                wasm.then(rust => rust.load_file(buff)).catch((error) => {
+                wasm.then(rust => rust.loadFile(buff)).catch((error) => {
                     this.setState({
-                        fileReadError: true,
-                        fileReadErrorMsg: error
+                        fileError: true,
+                        fileErrorMsg: error
                     });
                 })
             )
             .then(save => {
                 this.setState({
                     save: save,
-                    fileReadError: false,
                 }, () => {
-                    this.processSave();
-                    this.map.panTo([0,0]);
+                    this.processSave(true);
                 });
             });
     }
 
-    processSave() {
+    processSave(resetPan) {
         this.setState({
             loading: true
         }, () => {
-            try {
-                this.state.save.process_bricks(this.state.showOutlines);
-                this.setState({loading: false});
+                try {
+                    this.state.save.processBricks(this.state.showOutlines, this.state.fillBricks);
+                    this.setState({loading: false});
+                } catch (err) {
+                    this.setState({
+                        loading: false,
+                        fileError: true,
+                        fileErrorMsg: err
+                    });
+                }
+                
+                if (resetPan)
+                    this.resetPan();
                 this.canvas.needRedraw();
-            } catch (err) {
-                this.setState({
-                    loading: false,
-                    fileReadError: true,
-                    fileReadErrorMsg: err
-                });
             }
-        });
+        );
     }
 
 }

@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import {Container, Row, Col} from "reactstrap";
 
 import "bootstrap/dist/css/bootstrap.css";
+import "./Atlas/EasyButton/easy-button.css";
 
 import Header from "./Margins/Header";
 import Atlas from "./Atlas/Atlas";

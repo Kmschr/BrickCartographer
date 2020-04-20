@@ -20,7 +20,7 @@ extern "C" {
     fn log(s: &str);
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = loadFile)]
 pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
     let reader = match brs::Reader::new(body.as_slice()) {
         Ok(v) => v,

@@ -31,7 +31,7 @@ export default class SaveInfo extends Component {
     getBrickCount() {
         let bricks = 0;
         try {
-            bricks = this.props.save.brick_count();
+            bricks = this.props.save.brickCount();
         } catch (err) {
             console.error(err);
         }

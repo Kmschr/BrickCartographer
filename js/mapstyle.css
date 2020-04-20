@@ -27,21 +27,21 @@
 }
 
 .map-button {
-    border-radius: 4px;
-    display: block;
-    width: 26px; 
-    height: 26px; 
-    background-position: 50% 50%;
-    background-color: white;
-    font: bold 21px 'Lucida Console', Book, monospace;
-    text-indent: -3px;
-    box-sizing: border-box;
-    line-height: 26px;
-    border: 1px solid white;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
-.map-button:hover, .map-button:focus {
-    background-color: rgba(51, 181, 229, 0.4);
-    border: 1px solid rgba(51, 181, 229, 0.4);
+.custom-file-upload {
+    border: 1px solid #ccc;
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+input[type="file"] {
+    position: fixed;
+    right: 100%;
+    bottom: 100%;
 }

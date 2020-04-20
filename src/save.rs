@@ -2,9 +2,17 @@ use crate::log;
 use crate::webgl;
 use crate::graphics::*;
 
+use std::collections::HashSet;
 use brs::{HasHeader1, HasHeader2, Direction, Rotation};
 use web_sys::{WebGlRenderingContext, WebGlUniformLocation};
 use wasm_bindgen::prelude::*;
+
+#[derive(PartialEq, Eq, Hash)]
+pub struct BrickShape {
+    name_index: u32,
+    size: (u32, u32),
+    position: (i32, i32)
+}
 
 #[wasm_bindgen]
 pub struct JsSave {
@@ -37,12 +45,16 @@ impl JsSave {
     pub fn description(&self) -> String {
         self.reader.description().to_string()
     }
+    #[wasm_bindgen(js_name = brickCount)]
     pub fn brick_count(&self) -> i32 {
         self.reader.brick_count()
     }
 
     // Get rendering info needed from bricks
-    pub fn process_bricks(&mut self, draw_outlines: bool) -> Result<(), JsValue> {
+    #[wasm_bindgen(js_name = processBricks)]
+    pub fn process_bricks(&mut self, draw_outlines: bool, draw_fills: bool) -> Result<(), JsValue> {
+        let mut compatible = true;
+
         // Reset brick transforms
         self.bricks = self.unmodified_bricks.clone();
         self.shapes = Vec::new();
@@ -54,6 +66,11 @@ impl JsSave {
             }
 
             let name = &self.brick_assets[brick.asset_name_index as usize];
+            // Check if save is incompatible, which can usually be determined by brick owner index being out of bounds
+            let brick_owner_oob = brick.owner_index as usize > self.reader.brick_owners().len();
+            if brick_owner_oob {
+                compatible = false;
+            }
 
             // Give size to non procedural bricks
             match name.as_str() {
@@ -100,10 +117,6 @@ impl JsSave {
                 _ => ()
             }
 
-            if name == "B_2x2_Corner" {
-                
-            }
-
             // Apply Rotation
             if brick.rotation == Rotation::Deg90 || brick.rotation == Rotation::Deg270 {
                 std::mem::swap(&mut brick.size.0, &mut brick.size.1);
@@ -117,10 +130,34 @@ impl JsSave {
                 std::mem::swap(&mut brick.size.0, &mut brick.size.1);
                 std::mem::swap(&mut brick.size.1, &mut brick.size.2);
             }
+
+            if brick.size.0 > (STUD_WIDTH * 200.0) as u32 || brick.size.1 > (STUD_WIDTH * 200.0) as u32 || brick.size.2 > (PLATE_HEIGHT * 500.0) as u32  || brick_owner_oob {
+                brick.visibility = false;
+            }
         }
 
         // Now that the bricks are oriented properly, sort by top surface height
         self.bricks.sort_unstable_by_key(|brick| brick.position.2 + brick.size.2 as i32);
+
+        // Don't render bricks that are obviously hidden
+        let mut unique_shapes = HashSet::<BrickShape>::new();
+        let mut copy_count = 0;
+        for i in (0..self.bricks.len()).rev() {
+            let brick_shape = BrickShape {
+                name_index: self.bricks[i].asset_name_index,
+                position: (self.bricks[i].position.0, self.bricks[i].position.1),
+                size: (self.bricks[i].size.0, self.bricks[i].size.1)
+            };
+
+            if unique_shapes.contains(&brick_shape) {
+                self.bricks[i].visibility = false;
+                copy_count += 1;
+            } else {
+                unique_shapes.insert(brick_shape);
+            }
+        }
+        //log(&format!("Bricks Rendered: {}", unique_shapes.len()));
+        //log(&format!("Bricks Discarded: {}", copy_count));
 
         // Sums for calculating Centroid of save
         let mut area_sum = 0.0;
@@ -136,12 +173,6 @@ impl JsSave {
             }
 
             let name = &self.brick_assets[brick.asset_name_index as usize];
-
-            // Check if save is incompatible, which can usually be determined by brick owner index being out of bounds
-            let brick_owner_oob = brick.owner_index as usize > self.reader.brick_owners().len();
-            if brick_owner_oob {
-                return Err(JsValue::from_str("Save version not compatible w/ brs-rs"));
-            }
 
             // Get brick color as rgba 0.0 - 1.0 f32
             let mut brick_color = Color::black();
@@ -167,33 +198,32 @@ impl JsSave {
             let x2: f32 = (brick.position.0 + brick.size.0 as i32) as f32;
             let y2: f32 = (brick.position.1 + brick.size.1 as i32) as f32;
 
-            // Calculate Shape vertices
-            let verts = match name.as_str() {
-                "PB_DefaultBrick" => 
-                    get_rect(x1, y1, x2, y2),
-                "B_2x2_Corner" =>
-                    get_corner(brick.direction, brick.rotation, x1, y1, x2, y2),
-                "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                    get_side_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
-                "PB_DefaultWedge" =>
-                    get_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
-                "PB_DefaultRamp" =>
-                    get_ramp(brick.direction, brick.rotation, x1, y1, x2, y2),
-                _ => get_rect(x1, y1, x2, y2),
-            };
+            if draw_fills {
+                // Calculate Shape vertices
+                let verts = match name.as_str() {
+                    "B_2x2_Corner" =>
+                        get_corner(brick.direction, brick.rotation, x1, y1, x2, y2),
+                    "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
+                        get_side_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
+                    "PB_DefaultWedge" =>
+                        get_wedge(brick.direction, brick.rotation, x1, y1, x2, y2),
+                    "PB_DefaultRamp" =>
+                        get_ramp(brick.direction, brick.rotation, x1, y1, x2, y2),
+                    _ => 
+                        get_rect(x1, y1, x2, y2).to_vec(),
+                };
 
-            // Add shape to save
-            let shape = Shape {
-                vertices: verts,
-                color: brick_color,
-            };
-            self.shapes.append(&mut shape.get_vertex_array());
-
+                // Add shape to save
+                let shape = Shape {
+                    vertices: verts,
+                    color: brick_color,
+                };
+                self.shapes.append(&mut shape.get_vertex_array());
+            }
+            
             if draw_outlines {
                 // Add brick outline for rendering
                 let outline_verts = match name.as_str() {
-                    "PB_DefaultBrick" =>
-                        get_rect_outline(x1, y1, x2, y2),
                     "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
                         get_side_wedge_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
                     "PB_DefaultWedge" =>
@@ -201,7 +231,7 @@ impl JsSave {
                     "PB_DefaultRamp" =>
                         get_ramp_outline(brick.direction, brick.rotation, x1, y1, x2, y2),
                     _ =>
-                        get_rect_outline(x1, y1, x2, y2)
+                        get_rect_outline(x1, y1, x2, y2).to_vec()
                 };
 
                 let outline = Shape {
@@ -224,6 +254,9 @@ impl JsSave {
             y: point_sum.y / area_sum,
         };
 
+        if !compatible {
+            return Err(JsValue::from_str("Save version not compatible w/ brs-rs"));
+        }
         Ok(())
     }
 
