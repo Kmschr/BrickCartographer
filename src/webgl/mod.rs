@@ -101,31 +101,29 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32) -> Result<(), 
     gl.clear_color(0.8, 0.8, 0.8, 1.0);
     gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
 
-    let offset = Point {
-        x: pan.x - save.center.x,
-        y: pan.y - save.center.y
-    };
-
     let mut matrix = m3::projection(size.x, size.y);
     matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
-    matrix = m3::rotate(matrix, 0.0);
     matrix = m3::scale(matrix, scale, scale);
-    matrix = m3::translate(matrix, offset.x, offset.y);
+    matrix = m3::translate(matrix, pan.x, pan.y);
+    matrix = m3::rotate(matrix, 0.0);
+    matrix = m3::translate(matrix, -save.center.x, -save.center.y);
 
     gl.uniform_matrix3fv_with_f32_array(Some(save.u_matrix.as_ref()), false, &matrix);
 
     let vertex_array = &save.vertex_buffer;
     let vertex_count = (vertex_array.len() / 5) as i32;
 
-    unsafe {
-        gl.buffer_data_with_array_buffer_view(
-            WebGlRenderingContext::ARRAY_BUFFER,
-            &js_sys::Float32Array::view(&vertex_array),
-            WebGlRenderingContext::DYNAMIC_DRAW
-        );
-    }
+    if vertex_count > 0 {
+        unsafe {
+            gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &js_sys::Float32Array::view(&vertex_array),
+                WebGlRenderingContext::DYNAMIC_DRAW
+            );
+        }
 
-    gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
+        gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
+    }
     
     Ok(())
 }

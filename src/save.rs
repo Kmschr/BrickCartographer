@@ -77,6 +77,7 @@ impl JsSave {
             }
 
             log(&format!("{:?}", brick));
+            log(name);
 
             // Give size to non procedural bricks
             match name.as_str() {
@@ -219,10 +220,10 @@ impl JsSave {
                         side_wedge(brick.direction, brick.rotation, &shape),
                     "PB_DefaultWedge" =>
                         wedge(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRamp" => {
-                        log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
-                        ramp(brick.direction, brick.rotation, &shape)
-                    }
+                    "PB_DefaultRamp" =>
+                        ramp(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRampCorner" =>
+                        ramp_corner(brick.direction, brick.rotation, &shape),
                     _ => 
                         rec(&shape),
                 };
@@ -246,6 +247,8 @@ impl JsSave {
                         wedge_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRamp" =>
                         ramp_ol(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRampCorner" =>
+                        ramp_corner_ol(brick.direction, brick.rotation, &shape),
                     _ =>
                         rec_ol(&shape)
                 };

@@ -2,75 +2,115 @@ use brs::{Rotation, Direction};
 use bricks::primitives::*;
 
 pub fn ramp(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    let (x1, y1, x2, y2) = shape.unpack();
-    let my1 = y1 + STUD_WIDTH;
-    let my2 = y2 - STUD_WIDTH;
-    let mx1 = x1 + STUD_WIDTH;
-    let mx2 = x2 - STUD_WIDTH;
     match direction {
         Direction::XPositive =>
             match rotation {
-                Rotation::Deg90 => {
-                    let rec = rec(&Shape {x1, y1: my2, x2, y2});
-                    let tri = tri(&Shape {x1, y1, x2, y2: my2}, Tri::BotLeft);
-                    [rec, tri].concat()
-                },
-                Rotation::Deg270 => {
-                    let rec = rec(&Shape {x1, y1, x2, y2: my1});
-                    let tri = tri(&Shape {x1, y1: my1, x2, y2}, Tri::TopLeft);
-                    [rec, tri].concat()
-                },
-                _ => 
-                    rec(shape)
+                Rotation::Deg90 => ramp_bl_bot(shape),
+                Rotation::Deg270 => ramp_tl_top(shape),
+                _ => rec(shape)
             },
         Direction::XNegative =>
             match rotation {
-                Rotation::Deg90 => {
-                    let rec = rec(&Shape {x1, y1, x2, y2: my1});
-                    let tri = tri(&Shape {x1, y1: my1, x2, y2}, Tri::TopRight);
-                    [rec, tri].concat()
-                },
-                Rotation::Deg270 => {
-                    let rec = rec(&Shape {x1, y1: my2, x2, y2});
-                    let tri = tri(&Shape {x1, y1, x2, y2: my2}, Tri::BotRight);
-                    [rec, tri].concat()
-                },
-                _ =>
-                    rec(shape)
+                Rotation::Deg90 => ramp_tr_top(shape),
+                Rotation::Deg270 => ramp_br_bot(shape),
+                _ => rec(shape)
             },
         Direction::YPositive =>
             match rotation {
-                Rotation::Deg90 => {
-                    let rec = rec(&Shape {x1, y1, x2: mx1, y2});
-                    let tri = tri(&Shape {x1: mx1, y1, x2, y2}, Tri::TopLeft);
-                    [rec, tri].concat()
-                },
-                Rotation::Deg270 => {
-                    let rec = rec(&Shape {x1: mx2, y1, x2, y2});
-                    let tri = tri(&Shape {x1, y1, x2: mx2, y2}, Tri::TopRight);
-                    [rec, tri].concat()
-                },
-                _ =>
-                    rec(shape)
+                Rotation::Deg90 => ramp_tl_left(shape),
+                Rotation::Deg270 => ramp_tr_right(shape),
+                _ => rec(shape)
             },
         Direction::YNegative => 
             match rotation {
-                Rotation::Deg90 => {
-                    let rec = rec(&Shape {x1: mx2, y1, x2, y2});
-                    let tri = tri(&Shape {x1, y1, x2: mx2, y2}, Tri::BotRight);
-                    [rec, tri].concat()
-                },
-                Rotation::Deg270 => {
-                    let rec = rec(&Shape {x1, y1, x2: mx1, y2});
-                    let tri = tri(&Shape {x1: mx1, y1, x2, y2}, Tri::BotLeft);
-                    [rec, tri].concat()
-                },
-                _ =>
-                    rec(shape)
+                Rotation::Deg90 => ramp_br_right(shape),
+                Rotation::Deg270 => ramp_bl_left(shape),
+                _ => rec(shape)
             },
-        _ =>
-            rec(shape),
+        _ => rec(shape),
     }
+}
+
+pub fn ramp_corner(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+    match direction {
+        Direction::XPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_bl_bot(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_tl_top(shape)
+            },
+        Direction::XNegative =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_tr_top(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_br_bot(shape)
+            },
+        Direction::YPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_tl_left(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_tr_right(shape)
+            },
+        Direction::YNegative => 
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_br_right(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_bl_left(shape)
+            },
+        _ => rec(shape),
+    }
+}
+
+fn ramp_br_bot(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1, y1: y2 - STUD_WIDTH, x2, y2});
+    let tri = tri(&Shape {x1, y1, x2, y2: y2 - STUD_WIDTH}, Tri::BotRight);
+    [rec, tri].concat()
+}
+
+fn ramp_bl_left(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1, y1, x2: x1 + STUD_WIDTH, y2});
+    let tri = tri(&Shape {x1: x1 + STUD_WIDTH, y1, x2, y2}, Tri::BotLeft);
+    [rec, tri].concat()
+}
+
+fn ramp_tl_top(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1, y1, x2, y2: y1 + STUD_WIDTH});
+    let tri = tri(&Shape {x1, y1: y1 + STUD_WIDTH, x2, y2}, Tri::TopLeft);
+    [rec, tri].concat()
+}
+
+fn ramp_tr_right(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1: x2 - STUD_WIDTH, y1, x2, y2});
+    let tri = tri(&Shape {x1, y1, x2: x2 - STUD_WIDTH, y2}, Tri::TopRight);
+    [rec, tri].concat()
+}
+
+fn ramp_tl_left(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1, y1, x2: x1 + STUD_WIDTH, y2});
+    let tri = tri(&Shape {x1: x1 + STUD_WIDTH, y1, x2, y2}, Tri::TopLeft);
+    [rec, tri].concat()
+}
+
+fn ramp_tr_top(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1, y1, x2, y2: y1 + STUD_WIDTH});
+    let tri = tri(&Shape {x1, y1: y1 + STUD_WIDTH, x2, y2}, Tri::TopRight);
+    [rec, tri].concat()
+}
+
+fn ramp_br_right(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1: x2 - STUD_WIDTH, y1, x2, y2});
+    let tri = tri(&Shape {x1, y1, x2: x2 - STUD_WIDTH, y2}, Tri::BotRight);
+    [rec, tri].concat()
+}
+
+fn ramp_bl_bot(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, x2, y2) = shape.unpack();
+    let rec = rec(&Shape {x1, y1: y2 - STUD_WIDTH, x2, y2});
+    let tri = tri(&Shape {x1, y1, x2, y2: y2 - STUD_WIDTH}, Tri::BotLeft);
+    [rec, tri].concat()
 }
 
 pub fn ramp_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
@@ -103,7 +143,33 @@ pub fn ramp_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f
     }
 }
 
-fn ramp_ol_br_bot(shape: &Shape) -> Vec::<f32> {
+pub fn ramp_corner_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+    match direction {
+        Direction::XPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_bl_bot(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tl_top(shape)
+            },
+        Direction::XNegative =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tr_top(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_br_bot(shape)
+            },
+        Direction::YPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tl_left(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tr_right(shape)
+            },
+        Direction::YNegative => 
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_br_right(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_bl_left(shape)
+            },
+        _ => rec_ol(shape),
+    }
+}
+
+fn ramp_ol_br_bot(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_top(&Shape {x1, y1: y2 - STUD_WIDTH, x2, y2});
     let tri_shape = &Shape {x1, y1, x2, y2: y2 - STUD_WIDTH};
@@ -113,7 +179,7 @@ fn ramp_ol_br_bot(shape: &Shape) -> Vec::<f32> {
     [rec, tri].concat()
 }
 
-fn ramp_ol_bl_left(shape: &Shape) -> Vec::<f32> {
+fn ramp_ol_bl_left(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_right(&Shape {x1, y1, x2: x1 + STUD_WIDTH, y2});
     let tri_shape = &Shape {x1: x1 + STUD_WIDTH, y1, x2, y2};
@@ -123,7 +189,7 @@ fn ramp_ol_bl_left(shape: &Shape) -> Vec::<f32> {
     [rec, tri].concat()
 }
 
-fn ramp_ol_tl_top(shape: &Shape) -> Vec::<f32> {
+fn ramp_ol_tl_top(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_bot(&Shape {x1, y1, x2, y2: y1 + STUD_WIDTH});
     let tri_shape = &Shape {x1, y1: y1 + STUD_WIDTH, x2, y2};
@@ -133,7 +199,7 @@ fn ramp_ol_tl_top(shape: &Shape) -> Vec::<f32> {
     [rec, tri].concat()
 }
 
-fn ramp_ol_tr_right(shape: &Shape) -> Vec::<f32> {
+fn ramp_ol_tr_right(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_left(&Shape {x1: x2 - STUD_WIDTH, y1, x2, y2});
     let tri_shape = &Shape {x1, y1, x2: x2 - STUD_WIDTH, y2};
@@ -143,7 +209,7 @@ fn ramp_ol_tr_right(shape: &Shape) -> Vec::<f32> {
     [rec, tri].concat()
 }
 
-fn ramp_ol_tl_left(shape: &Shape) -> Vec::<f32> {
+fn ramp_ol_tl_left(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_right(&Shape {x1, y1, x2: x1 + STUD_WIDTH, y2});
     let tri_shape = &Shape {x1: x1 + STUD_WIDTH, y1, x2, y2};
@@ -153,7 +219,7 @@ fn ramp_ol_tl_left(shape: &Shape) -> Vec::<f32> {
     [rec, tri].concat()
 }
 
-fn ramp_ol_tr_top(shape: &Shape) -> Vec::<f32> {
+fn ramp_ol_tr_top(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_bot(&Shape {x1, y1, x2, y2: y1 + STUD_WIDTH});
     let tri_shape = &Shape {x1, y1: y1 + STUD_WIDTH, x2, y2};
@@ -163,7 +229,7 @@ fn ramp_ol_tr_top(shape: &Shape) -> Vec::<f32> {
     [rec, tri].concat()
 }
 
-fn ramp_ol_br_right(shape: &Shape) -> Vec::<f32> {
+fn ramp_ol_br_right(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_left(&Shape {x1: x2 - STUD_WIDTH, y1, x2, y2});
     let tri_shape = &Shape {x1, y1, x2: x2 - STUD_WIDTH, y2};
@@ -173,7 +239,7 @@ fn ramp_ol_br_right(shape: &Shape) -> Vec::<f32> {
     [rec, tri].concat()
 }
 
-fn ramp_ol_bl_bot(shape: &Shape) -> Vec::<f32> {
+fn ramp_ol_bl_bot(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec_ol_no_top(&Shape {x1, y1: y2 - STUD_WIDTH, x2, y2});
     let tri_shape = &Shape {x1, y1, x2, y2: y2 - STUD_WIDTH};
