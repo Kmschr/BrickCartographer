@@ -1,7 +1,7 @@
 use brs::{Rotation, Direction};
 use bricks::primitives::*;
 
-pub fn get_ramp(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+pub fn ramp(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let my1 = y1 + STUD_WIDTH;
     let my2 = y2 - STUD_WIDTH;
@@ -73,47 +73,33 @@ pub fn get_ramp(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<
     }
 }
 
-pub fn get_ramp_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+pub fn ramp_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
     match direction {
         Direction::XPositive =>
             match rotation {
-                Rotation::Deg90 =>
-                    ramp_ol_bl_bot(shape),
-                Rotation::Deg270 => {
-                    ramp_ol_tl_top(shape)
-                },
-                _ => 
-                    rec_ol(shape)
+                Rotation::Deg90 => ramp_ol_bl_bot(shape),
+                Rotation::Deg270 => ramp_ol_tl_top(shape),
+                _ => rec_ol(shape)
             },
         Direction::XNegative =>
             match rotation {
-                Rotation::Deg90 =>
-                    ramp_ol_tr_top(shape),
-                Rotation::Deg270 =>
-                    ramp_ol_br_bot(shape),
-                _ =>
-                    rec_ol(shape)
+                Rotation::Deg90 => ramp_ol_tr_top(shape),
+                Rotation::Deg270 => ramp_ol_br_bot(shape),
+                _ => rec_ol(shape)
             },
         Direction::YPositive =>
             match rotation {
-                Rotation::Deg90 =>
-                    ramp_ol_tl_left(shape),
-                Rotation::Deg270 =>
-                    ramp_ol_tr_right(shape),
-                _ =>
-                    rec_ol(shape)
+                Rotation::Deg90 => ramp_ol_tl_left(shape),
+                Rotation::Deg270 => ramp_ol_tr_right(shape),
+                _ => rec_ol(shape)
             },
         Direction::YNegative => 
             match rotation {
-                Rotation::Deg90 =>
-                    ramp_ol_br_right(shape),
-                Rotation::Deg270 =>
-                    ramp_ol_bl_left(shape),
-                _ =>
-                    rec_ol(shape)
+                Rotation::Deg90 => ramp_ol_br_right(shape),
+                Rotation::Deg270 => ramp_ol_bl_left(shape),
+                _ => rec_ol(shape)
             },
-        _ =>
-            rec_ol(shape),
+        _ => rec_ol(shape),
     }
 }
 

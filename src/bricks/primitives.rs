@@ -27,6 +27,10 @@ impl Shape {
         let dy = dx / ar;
         (dx, dy)
     }
+
+    pub fn size(&self) -> (f32, f32) {
+        ((self.x2 - self.x1)/2.0, (self.y2 - self.y1)/2.0)
+    }
 }
 
 pub enum Tri {

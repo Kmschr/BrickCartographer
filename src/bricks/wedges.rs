@@ -1,7 +1,7 @@
 use brs::{Rotation, Direction};
 use bricks::primitives::*;
 
-pub fn get_side_wedge(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+pub fn side_wedge(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
     match direction {
         Direction::ZPositive => 
             match rotation {
@@ -22,7 +22,7 @@ pub fn get_side_wedge(direction: Direction, rotation: Rotation, shape: &Shape) -
     }
 }
 
-pub fn get_side_wedge_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+pub fn side_wedge_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
     match direction {
         Direction::ZPositive => 
             match rotation {
@@ -43,7 +43,7 @@ pub fn get_side_wedge_ol(direction: Direction, rotation: Rotation, shape: &Shape
     }
 }
 
-pub fn get_wedge(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+pub fn wedge(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
     match rotation {
         Rotation::Deg90 =>
             match direction {
@@ -68,7 +68,7 @@ pub fn get_wedge(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec
     }
 }
 
-pub fn get_wedge_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+pub fn wedge_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
     match rotation {
         Rotation::Deg90 =>
             match direction {

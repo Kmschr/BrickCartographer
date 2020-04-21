@@ -13,7 +13,9 @@ use wasm_bindgen::prelude::*;
 pub struct BrickShape {
     name_index: u32,
     size: (u32, u32),
-    position: (i32, i32)
+    position: (i32, i32),
+    rotation: Rotation,
+    direction: Direction,
 }
 
 #[wasm_bindgen]
@@ -73,6 +75,8 @@ impl JsSave {
             if brick_owner_oob {
                 compatible = false;
             }
+
+            log(&format!("{:?}", brick));
 
             // Give size to non procedural bricks
             match name.as_str() {
@@ -148,7 +152,9 @@ impl JsSave {
             let brick_shape = BrickShape {
                 name_index: self.bricks[i].asset_name_index,
                 position: (self.bricks[i].position.0, self.bricks[i].position.1),
-                size: (self.bricks[i].size.0, self.bricks[i].size.1)
+                size: (self.bricks[i].size.0, self.bricks[i].size.1),
+                rotation: self.bricks[i].rotation,
+                direction: self.bricks[i].direction
             };
 
             if unique_shapes.contains(&brick_shape) {
@@ -208,14 +214,14 @@ impl JsSave {
                 // Calculate Shape vertices
                 let verts = match name.as_str() {
                     "B_2x2_Corner" =>
-                        get_corner(brick.direction, brick.rotation, &shape),
+                        corner(brick.direction, brick.rotation, &shape),
                     "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                        get_side_wedge(brick.direction, brick.rotation, &shape),
+                        side_wedge(brick.direction, brick.rotation, &shape),
                     "PB_DefaultWedge" =>
-                        get_wedge(brick.direction, brick.rotation, &shape),
+                        wedge(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRamp" => {
                         log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
-                        get_ramp(brick.direction, brick.rotation, &shape)
+                        ramp(brick.direction, brick.rotation, &shape)
                     }
                     _ => 
                         rec(&shape),
@@ -232,12 +238,14 @@ impl JsSave {
             if draw_ols {
                 // Add brick outline for rendering
                 let ol_verts = match name.as_str() {
+                    "B_2x2_Corner" =>
+                        corner_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                        get_side_wedge_ol(brick.direction, brick.rotation, &shape),
+                        side_wedge_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultWedge" =>
-                        get_wedge_ol(brick.direction, brick.rotation, &shape),
+                        wedge_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRamp" =>
-                        get_ramp_ol(brick.direction, brick.rotation, &shape),
+                        ramp_ol(brick.direction, brick.rotation, &shape),
                     _ =>
                         rec_ol(&shape)
                 };
