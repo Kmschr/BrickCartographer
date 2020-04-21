@@ -202,7 +202,7 @@ impl JsSave {
                 y2: (brick.position.1 + brick.size.1 as i32) as f32
             };
 
-            log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
+            //log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
 
             if draw_fills {
                 // Calculate Shape vertices
@@ -213,8 +213,10 @@ impl JsSave {
                         get_side_wedge(brick.direction, brick.rotation, &shape),
                     "PB_DefaultWedge" =>
                         get_wedge(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRamp" =>
-                        get_ramp(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRamp" => {
+                        log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
+                        get_ramp(brick.direction, brick.rotation, &shape)
+                    }
                     _ => 
                         rec(&shape),
                 };
