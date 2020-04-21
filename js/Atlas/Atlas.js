@@ -215,6 +215,10 @@ export default class Atlas extends Component {
 
     loadFile(event) {
         let file = event.target.files[0];
+
+        if (!file)
+            return;
+
         let extension = file.name.split('.').pop();
 
         if (extension !== 'brs') {

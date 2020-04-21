@@ -1,7 +1,11 @@
 use web_sys::{WebGlProgram, WebGlRenderingContext, WebGlShader};
 
 pub const VERTEX_SHADER_CODE: &str = r#"
-    precision mediump float;
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+    #else
+        precision mediump float;
+    #endif
 
     attribute vec2 a_position;
     attribute vec3 a_color;
@@ -17,7 +21,11 @@ pub const VERTEX_SHADER_CODE: &str = r#"
 "#;
 
 pub const FRAGMENT_SHADER_CODE: &str = r#"
-    precision mediump float;
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+    #else
+        precision mediump float;
+    #endif
 
     varying vec4 v_color;
 

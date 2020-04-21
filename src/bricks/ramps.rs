@@ -57,6 +57,32 @@ pub fn ramp_corner(direction: Direction, rotation: Rotation, shape: &Shape) -> V
     }
 }
 
+pub fn ramp_corner_inverted(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+    match direction {
+        Direction::XPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_br_bot(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_tr_top(shape)
+            },
+        Direction::XNegative =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_tl_top(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_bl_bot(shape)
+            },
+        Direction::YPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_bl_left(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_br_right(shape)
+            },
+        Direction::YNegative => 
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_tr_right(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_tl_left(shape)
+            },
+        _ => rec(shape),
+    }
+}
+
 fn ramp_br_bot(shape: &Shape) -> Vec<f32> {
     let (x1, y1, x2, y2) = shape.unpack();
     let rec = rec(&Shape {x1, y1: y2 - STUD_WIDTH, x2, y2});
@@ -164,6 +190,32 @@ pub fn ramp_corner_ol(direction: Direction, rotation: Rotation, shape: &Shape) -
             match rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_br_right(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_bl_left(shape)
+            },
+        _ => rec_ol(shape),
+    }
+}
+
+pub fn ramp_corner_inverted_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+    match direction {
+        Direction::XPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_br_bot(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tr_top(shape)
+            },
+        Direction::XNegative =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tl_top(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_bl_bot(shape)
+            },
+        Direction::YPositive =>
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_bl_left(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_br_right(shape)
+            },
+        Direction::YNegative => 
+            match rotation {
+                Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tr_right(shape),
+                Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tl_left(shape)
             },
         _ => rec_ol(shape),
     }

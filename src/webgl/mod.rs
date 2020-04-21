@@ -114,14 +114,6 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32) -> Result<(), 
     let vertex_count = (vertex_array.len() / 5) as i32;
 
     if vertex_count > 0 {
-        unsafe {
-            gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &js_sys::Float32Array::view(&vertex_array),
-                WebGlRenderingContext::DYNAMIC_DRAW
-            );
-        }
-
         gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
     }
     

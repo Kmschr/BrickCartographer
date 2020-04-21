@@ -175,6 +175,8 @@ impl JsSave {
         // Get color list as rgba 0.0-1.0 f32
         self.colors = self.reader.colors().iter().map(convert_color).collect();
         
+
+        
         // Calculate shapes for rendering and save Centroid
         for brick in &self.bricks {
             if !brick.visibility {
@@ -224,6 +226,10 @@ impl JsSave {
                         ramp(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRampCorner" =>
                         ramp_corner(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRampCornerInverted" =>
+                        ramp_corner_inverted(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRampCrest" =>
+                        ramp_crest(brick.direction, brick.rotation, &shape),    
                     _ => 
                         rec(&shape),
                 };
@@ -249,6 +255,10 @@ impl JsSave {
                         ramp_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRampCorner" =>
                         ramp_corner_ol(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRampCornerInverted" =>
+                        ramp_corner_inverted_ol(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRampCrest" =>
+                        ramp_crest_ol(brick.direction, brick.rotation, &shape),  
                     _ =>
                         rec_ol(&shape)
                 };
@@ -272,6 +282,14 @@ impl JsSave {
             x: point_sum.x / area_sum,
             y: point_sum.y / area_sum,
         };
+
+        unsafe {
+            self.context.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &js_sys::Float32Array::view(&self.vertex_buffer),
+                WebGlRenderingContext::STATIC_DRAW
+            );
+        }
 
         if !compatible {
             return Err(JsValue::from_str("Save version not compatible w/ brs-rs"));
