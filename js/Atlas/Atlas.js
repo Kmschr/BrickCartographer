@@ -11,8 +11,17 @@ const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
 const MAP_ZOOM_MIN = -6;
 
-const FULLSCREEN_SYMBOL = "\u26F6";
-const BRICK_OUTLINE_SYMBOL = "\u25A6";
+const saveBlob = (function() {
+    const a = document.createElement('a');
+    document.body.appendChild(a);
+    a.style.display = 'none';
+    return function saveData(blob, fileName) {
+       const url = window.URL.createObjectURL(blob);
+       a.href = url;
+       a.download = fileName;
+       a.click();
+    };
+}());
 
 const wasm = import('../../pkg');
 
@@ -27,6 +36,7 @@ export default class Atlas extends Component {
         this.resetPan = this.resetPan.bind(this);
         this.processSave = this.processSave.bind(this);
         this.toggleFullscreen = this.toggleFullscreen.bind(this);
+        this.takeScreenshot = this.takeScreenshot.bind(this);
         this.toggleBrickOutlines = this.toggleBrickOutlines.bind(this);
         this.toggleBrickFill = this.toggleBrickFill.bind(this);
         this.state = {
@@ -61,6 +71,15 @@ export default class Atlas extends Component {
                 icon: '<i class="fas fa-expand map-button"></i>',
                 title: 'Fullscreen',
                 onClick: this.toggleFullscreen
+            }]
+        }).addTo(this.map);
+
+        L.easyButton({
+            position: 'bottomright',
+            states: [{
+                icon: '<i class="fas fa-camera map-button"></i>',
+                title: 'Take Screenshot',
+                onClick: this.takeScreenshot
             }]
         }).addTo(this.map);
 
@@ -107,6 +126,16 @@ export default class Atlas extends Component {
         this.setState({
             fullscreen: !this.state.fullscreen
         })
+    }
+
+    takeScreenshot() {
+        if (this.state.save) {
+            let scale = Math.pow(2, this.map.getZoom());
+            this.state.save.render(this.canvas._canvas.width, this.canvas._canvas.height, this.state.pan.x, this.state.pan.y, scale);
+            this.canvas._canvas.toBlob((blob) => {
+                saveBlob(blob, `${this.state.map}.png`);
+            });
+        }
     }
 
     toggleBrickOutlines() {
