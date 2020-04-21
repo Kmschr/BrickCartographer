@@ -31,6 +31,40 @@ pub fn ramp_crest(direction: Direction, rotation: Rotation, shape: &Shape) -> Ve
     }
 }
 
+pub fn ramp_crest_end(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+    match direction {
+        Direction::YPositive => {
+            match rotation {
+                Rotation::Deg0 => tri(shape, Tri::TopRight),
+                Rotation::Deg180 => tri(shape, Tri::TopLeft),
+                Rotation::Deg90 | Rotation::Deg270 => crest_down(shape),
+            }
+        },
+        Direction::YNegative => {
+            match rotation {
+                Rotation::Deg0 => tri(shape, Tri::BotLeft),
+                Rotation::Deg180 => tri(shape, Tri::BotRight),
+                Rotation::Deg90 | Rotation::Deg270 => crest_up(shape),
+            }
+        },
+        Direction::XPositive => {
+            match rotation {
+                Rotation::Deg0 => tri(shape, Tri::TopLeft),
+                Rotation::Deg180 => tri(shape, Tri::BotLeft),
+                Rotation::Deg90 | Rotation::Deg270 => crest_right(shape),
+            }
+        },
+        Direction::XNegative => {
+            match rotation {
+                Rotation::Deg0 => tri(shape, Tri::BotRight),
+                Rotation::Deg180 => tri(shape, Tri::TopRight),
+                Rotation::Deg90 | Rotation::Deg270 => crest_left(shape),
+            }
+        },
+        _ => rec(shape)
+    }
+}
+
 fn crest_down(shape: &Shape) -> Vec<f32> {
     let (sx, _sy) = shape.size();
     [tri(&Shape {x1: shape.x1, y1: shape.y1, x2: shape.x2 - sx, y2: shape.y2}, Tri::TopRight),
@@ -79,6 +113,40 @@ pub fn ramp_crest_ol(direction: Direction, rotation: Rotation, shape: &Shape) ->
             match rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_left(shape),
                 _ => rec_ol(shape)
+            }
+        },
+        _ => rec_ol(shape)
+    }
+}
+
+pub fn ramp_crest_end_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
+    match direction {
+        Direction::YPositive => {
+            match rotation {
+                Rotation::Deg0 => tri_ol(shape, Tri::TopRight),
+                Rotation::Deg180 => tri_ol(shape, Tri::TopLeft),
+                Rotation::Deg90 | Rotation::Deg270 => crest_ol_down(shape),
+            }
+        },
+        Direction::YNegative => {
+            match rotation {
+                Rotation::Deg0 => tri_ol(shape, Tri::BotLeft),
+                Rotation::Deg180 => tri_ol(shape, Tri::BotRight),
+                Rotation::Deg90 | Rotation::Deg270 => crest_ol_up(shape),
+            }
+        },
+        Direction::XPositive => {
+            match rotation {
+                Rotation::Deg0 => tri_ol(shape, Tri::TopLeft),
+                Rotation::Deg180 => tri_ol(shape, Tri::BotLeft),
+                Rotation::Deg90 | Rotation::Deg270 => crest_ol_right(shape),
+            }
+        },
+        Direction::XNegative => {
+            match rotation {
+                Rotation::Deg0 => tri_ol(shape, Tri::BotRight),
+                Rotation::Deg180 => tri_ol(shape, Tri::TopRight),
+                Rotation::Deg90 | Rotation::Deg270 => crest_ol_left(shape),
             }
         },
         _ => rec_ol(shape)

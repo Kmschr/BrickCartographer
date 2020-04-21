@@ -76,8 +76,8 @@ impl JsSave {
                 compatible = false;
             }
 
-            log(&format!("{:?}", brick));
-            log(name);
+            //log(&format!("{:?}", brick));
+            //log(name);
 
             // Give size to non procedural bricks
             match name.as_str() {
@@ -229,7 +229,9 @@ impl JsSave {
                     "PB_DefaultRampCornerInverted" =>
                         ramp_corner_inverted(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRampCrest" =>
-                        ramp_crest(brick.direction, brick.rotation, &shape),    
+                        ramp_crest(brick.direction, brick.rotation, &shape),
+                    "PB_DefaultRampCrestEnd" =>
+                        ramp_crest_end(brick.direction, brick.rotation, &shape),
                     _ => 
                         rec(&shape),
                 };
@@ -259,6 +261,8 @@ impl JsSave {
                         ramp_corner_inverted_ol(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRampCrest" =>
                         ramp_crest_ol(brick.direction, brick.rotation, &shape),  
+                    "PB_DefaultRampCrestEnd" =>
+                        ramp_crest_end_ol(brick.direction, brick.rotation, &shape),
                     _ =>
                         rec_ol(&shape)
                 };
