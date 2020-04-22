@@ -104,9 +104,8 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, rotation: f32)
     let mut matrix = m3::projection(size.x, size.y);
     matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
     matrix = m3::scale(matrix, scale, scale);
-    matrix = m3::translate(matrix, pan.x, pan.y);
     matrix = m3::rotate(matrix, rotation);
-    matrix = m3::translate(matrix, -save.center.x, -save.center.y);
+    matrix = m3::translate(matrix, pan.x - save.center.x, pan.y - save.center.y);
 
     gl.uniform_matrix3fv_with_f32_array(Some(save.u_matrix.as_ref()), false, &matrix);
 

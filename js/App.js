@@ -21,22 +21,29 @@ export default class App extends Component {
                             <p>Use <a href="https://www.reheatedcake.io/bls2brs/">bls2brs</a> if you want to try and load a save from Blockland, results may vary</p>
                             <h2>Planned Features</h2>
                             <ul>
-                                <li>map rotation</li>
-                                <li>topographic lines</li>
-                                <li>chunk rendering for improved performance</li>
-                                <li>image exporting</li>
                                 <li>altitude cutoff for viewing inside structures</li>
                                 <li>color adjustment options</li>
+                                <li>topographic lines</li>
+                                <li>chunk rendering for improved performance</li>
                             </ul>
                             <h2>Known Issues</h2>
                             <ul>
-                                <li>certain saves will not load (e.g: Brickadia City) due to error w/ brs-rs</li>
+                                <li>certain saves will not load proper (e.g: Brickadia City, any img2brs save) due to error w/ brs-rs</li>
                                 <li>zooming w/ mouse/shift-drag does not pan appropiately</li>
                                 <li>switching between fullscreen and standard views will not adjust view to center</li>
                                 <li>many unsupported bricks</li>
-                                <li>incorrect outlines on certain bricks</li>
                             </ul>
                             <h2>Release Notes</h2>
+                            <h3>v0.2</h3>
+                            <ul>
+                                <li>redid some UI elements</li>
+                                <li>now able to hide brick fill</li>
+                                <li>added ACM City as default save</li>
+                                <li>some previous incompatible builds will now load somewhat</li>
+                                <li>added support and proper outlines for more bricks such as ramps and rounds</li>
+                                <li>can now download a render of the map</li>
+                                <li>map is now rotate</li>
+                            </ul>
                             <h3>v0.1</h3>
                             <ul>
                                 <li>saves are now loaded from rust version of brs</li>

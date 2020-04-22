@@ -14,7 +14,7 @@ const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
 const MAP_ZOOM_MIN = -6;
 
-const DEG45 = Math.PI / 4;
+const ROTATE_ANGLE = Math.PI / 8;
 
 const wasm = import('../../pkg');
 
@@ -84,7 +84,7 @@ export default class Atlas extends Component {
             states: [{
                 icon: '<i class="fas fa-undo map-button"></i>',
                 title: 'Rotate CCW',
-                onClick: this.rotateCCW.bind(this)
+                onClick: this.rotateCW.bind(this)
             }]
         });
         let CW = L.easyButton({
@@ -189,7 +189,7 @@ export default class Atlas extends Component {
 
     rotateCCW() {
         this.setState({
-            rotation: this.state.rotation + DEG45
+            rotation: this.state.rotation + ROTATE_ANGLE
         }, () => {
             this.canvas.needRedraw();
         })
@@ -197,7 +197,7 @@ export default class Atlas extends Component {
 
     rotateCW() {
         this.setState({
-            rotation: this.state.rotation - DEG45
+            rotation: this.state.rotation - ROTATE_ANGLE
         }, () => {
             this.canvas.needRedraw();
         })
@@ -253,10 +253,15 @@ export default class Atlas extends Component {
             x: pane.x - this.state.pane.x,
             y: pane.y - this.state.pane.y
         };
+        // Rotate the panning
+        let diffRotated = {
+            x: panDiff.x * Math.cos(this.state.rotation) - panDiff.y * Math.sin(this.state.rotation),
+            y: panDiff.x * Math.sin(this.state.rotation) + panDiff.y * Math.cos(this.state.rotation)
+        };
         // scale the amount of panning
         let diffScaled = {
-            x: panDiff.x / scale,
-            y: panDiff.y / scale
+            x: diffRotated.x / scale,
+            y: diffRotated.y / scale
         };
         // apply the scaled amount of panning to original pre pan
         return {

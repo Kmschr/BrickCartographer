@@ -4,6 +4,10 @@ pub const PLATE_HEIGHT: f32 = 4.0;
 
 pub const OUTLINE_THICKNESS: f32 = 1.5;
 
+pub const DEG360: f32 = std::f32::consts::PI * 2.0;
+pub const CIRCLE_RES: f32 = 16.0;
+pub const SLICE_ANGLE: f32 = DEG360 / CIRCLE_RES;
+
 pub struct Shape {
     pub x1: f32,
     pub y1: f32,
@@ -237,4 +241,53 @@ pub fn rec_ol_no_bot(shape: &Shape) -> Vec<f32> {
 
 pub fn rec_ol_no_left(shape: &Shape) -> Vec<f32> {
     [rec_ol_top(shape), rec_ol_right(shape), rec_ol_bot(shape)].concat()
+}
+
+pub fn circle(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, _x2, _y2) = shape.unpack();
+    let (sx, sy) = shape.size();
+    let x = x1 + sx;
+    let y = y1 + sy;
+    let radius = sx;
+
+    let mut circle = Vec::new();
+    let mut theta = 0.0;
+
+    while theta < DEG360 {
+        let dx1 = radius * theta.cos();
+        let dy1 = radius * theta.sin();
+        theta += SLICE_ANGLE;
+        let dx2 = radius * theta.cos();
+        let dy2 = radius * theta.sin();
+        circle.append(&mut vec![x, y,  x + dx1, y + dy1,  x + dx2, y + dy2]);
+    }
+
+    circle
+}
+
+pub fn circle_ol(shape: &Shape) -> Vec<f32> {
+    let (x1, y1, _x2, _y2) = shape.unpack();
+    let (sx, sy) = shape.size();
+    let x = x1 + sx;
+    let y = y1 + sy;
+    let radius = sx;
+
+    let mut circle = Vec::new();
+    let mut theta = 0.0;
+
+    while theta < DEG360 {
+        let dx1 = radius * theta.cos();
+        let dy1 = radius * theta.sin();
+        let dxi1 = (radius - OUTLINE_THICKNESS) * theta.cos();
+        let dyi1 = (radius - OUTLINE_THICKNESS) * theta.sin();
+        theta += SLICE_ANGLE;
+        let dx2 = radius * theta.cos();
+        let dy2 = radius * theta.sin();
+        let dxi2 = (radius - OUTLINE_THICKNESS) * theta.cos();
+        let dyi2 = (radius - OUTLINE_THICKNESS) * theta.sin();
+        circle.append(&mut vec![x + dxi2, y + dyi2,  x + dxi1, y + dyi1,  x + dx1, y + dy1,
+                                x + dxi2, y + dyi2,  x + dx1, y + dy1,  x + dx2, y + dy2]);
+    }
+
+    circle
 }

@@ -121,6 +121,31 @@ impl JsSave {
                     brick.size.1 = STUD_WIDTH as u32;
                     brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
                 },
+                "B_1x1F_Round" => {
+                    brick.size.0 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
+                },
+                "B_1x1_Round" => {
+                    brick.size.0 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
+                "B_2x2F_Round" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = STUD_WIDTH as u32;
+                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
+                },
+                "B_2x2_Round" => {
+                    brick.size.0 = STUD_WIDTH as u32;
+                    brick.size.1 = STUD_WIDTH as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
+                "B_4x4_Round" => {
+                    brick.size.0 = (STUD_WIDTH*2.0) as u32;
+                    brick.size.1 = (STUD_WIDTH*2.0) as u32;
+                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
+                },
                 _ => ()
             }
 
@@ -232,6 +257,8 @@ impl JsSave {
                         ramp_crest(brick.direction, brick.rotation, &shape),
                     "PB_DefaultRampCrestEnd" =>
                         ramp_crest_end(brick.direction, brick.rotation, &shape),
+                    "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
+                        round(brick.direction, &shape),
                     _ => 
                         rec(&shape),
                 };
@@ -263,6 +290,8 @@ impl JsSave {
                         ramp_crest_ol(brick.direction, brick.rotation, &shape),  
                     "PB_DefaultRampCrestEnd" =>
                         ramp_crest_end_ol(brick.direction, brick.rotation, &shape),
+                    "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
+                        round_ol(brick.direction, &shape),
                     _ =>
                         rec_ol(&shape)
                 };
