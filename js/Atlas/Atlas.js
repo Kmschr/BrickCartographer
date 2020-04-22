@@ -2,26 +2,19 @@ import React, {Component} from 'react';
 import {Col, Container, Row, Input, Spinner, Alert, Button, CardLink} from 'reactstrap';
 import {removeFileExtension} from "../util";
 import 'leaflet/dist/leaflet.css';
-import '../mapstyle.css';
+import '../style.css';
 import './L.CanvasLayer';
-import './EasyButton/easy-button';
+import 'leaflet-easybutton';
 import SaveInfo from "./SaveInfo";
+import {saveBlob} from "./util";
+
+import ACM_City from "../../default_saves/ACM_City.brs";
 
 const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
 const MAP_ZOOM_MIN = -6;
 
-const saveBlob = (function() {
-    const a = document.createElement('a');
-    document.body.appendChild(a);
-    a.style.display = 'none';
-    return function saveData(blob, fileName) {
-       const url = window.URL.createObjectURL(blob);
-       a.href = url;
-       a.download = fileName;
-       a.click();
-    };
-}());
+const DEG45 = Math.PI / 4;
 
 const wasm = import('../../pkg');
 
@@ -29,6 +22,7 @@ export default class Atlas extends Component {
 
     constructor(props) {
         super(props);
+        this.handleFileSelected = this.handleFileSelected.bind(this);
         this.loadFile = this.loadFile.bind(this);
         this.loadFileWASM = this.loadFileWASM.bind(this);
         this.onDrawLayer = this.onDrawLayer.bind(this);
@@ -38,6 +32,7 @@ export default class Atlas extends Component {
         this.toggleFullscreen = this.toggleFullscreen.bind(this);
         this.takeScreenshot = this.takeScreenshot.bind(this);
         this.toggleBrickOutlines = this.toggleBrickOutlines.bind(this);
+        this.loadDefaultCity = this.loadDefaultCity.bind(this);
         this.toggleBrickFill = this.toggleBrickFill.bind(this);
         this.state = {
             fileError: false,
@@ -48,6 +43,7 @@ export default class Atlas extends Component {
             fullscreen: false,
             showOutlines: false,
             fillBricks: true,
+            rotation: 0,
         };
 
         this.resetPan();
@@ -83,23 +79,25 @@ export default class Atlas extends Component {
             }]
         }).addTo(this.map);
 
-        L.easyButton({
+        let CCW = L.easyButton({
             position: 'topleft',
             states: [{
-                icon: '<i class="fas fa-border-style map-button"></i>',
-                title: 'Toggle Brick Outlines',
-                onClick: this.toggleBrickOutlines
+                icon: '<i class="fas fa-undo map-button"></i>',
+                title: 'Rotate CCW',
+                onClick: this.rotateCCW.bind(this)
             }]
+        });
+        let CW = L.easyButton({
+            position: 'topleft',
+            states: [{
+                icon: '<i class="fas fa-redo map-button"></i>',
+                title: 'Rotate CW',
+                onClick: this.rotateCCW.bind(this)
+            }]
+        });
+        L.easyBar([CCW, CW], {
+            position: 'topleft'
         }).addTo(this.map);
-
-        L.easyButton({
-            position: 'topleft',
-            states: [{
-                icon: '<i class="fas fa-fill map-button"></i>',
-                title: 'Toggle Brick Fill',
-                onClick: this.toggleBrickFill
-            }]
-          }).addTo(this.map);
 
         L.easyButton({
             position: 'bottomleft',
@@ -110,9 +108,60 @@ export default class Atlas extends Component {
             }]
         }).addTo(this.map);
 
+        let outlines = L.easyButton({
+            position: 'topleft',
+            states: [{
+                icon: '<i class="fas fa-border-style map-button"></i>',
+                title: 'Toggle Brick Outlines',
+                onClick: this.toggleBrickOutlines
+            }]
+        });
+        let fill = L.easyButton({
+            position: 'topleft',
+            states: [{
+                icon: '<i class="fas fa-fill map-button"></i>',
+                title: 'Toggle Brick Fill',
+                onClick: this.toggleBrickFill
+            }]
+          });
+        L.easyBar([outlines, fill], {
+            position: 'bottomleft',
+        }).addTo(this.map);
+
         // Add a HTMLCanvas to the Map
         this.canvas = L.canvasLayer().delegate(this);
         this.canvas.addTo(this.map);
+
+        this.loadDefaultCity();
+    }
+
+    loadDefaultCity() {
+        let xhr = new XMLHttpRequest();
+        xhr.open("GET", ACM_City);
+        xhr.responseType = "arraybuffer";
+        xhr.onreadystatechange = _ => {
+            if(xhr.readyState === 4) {
+                if(xhr.status === 200 || rawFile.status == 0) {
+                    let buff = xhr.response;                    
+                    let u8buff = new Uint8Array(buff);
+                    wasm.then(rust => rust.loadFile(u8buff)).catch((error) => {
+                            this.setState({
+                                fileError: true,
+                                fileErrorMsg: error
+                            });
+                        })
+                        .then(save => {                            
+                            this.setState({
+                                save: save,
+                                map: "ACM City"
+                            }, () => {
+                                this.processSave(true);
+                            });
+                        });
+                }  
+            }
+        }
+        xhr.send();
     }
 
     toggleFullscreen() {
@@ -131,11 +180,27 @@ export default class Atlas extends Component {
     takeScreenshot() {
         if (this.state.save) {
             let scale = Math.pow(2, this.map.getZoom());
-            this.state.save.render(this.canvas._canvas.width, this.canvas._canvas.height, this.state.pan.x, this.state.pan.y, scale);
+            this.state.save.render(this.canvas._canvas.width, this.canvas._canvas.height, this.state.pan.x, this.state.pan.y, scale, this.state.rotation);
             this.canvas._canvas.toBlob((blob) => {
                 saveBlob(blob, `${this.state.map}.png`);
             });
         }
+    }
+
+    rotateCCW() {
+        this.setState({
+            rotation: this.state.rotation + DEG45
+        }, () => {
+            this.canvas.needRedraw();
+        })
+    }
+
+    rotateCW() {
+        this.setState({
+            rotation: this.state.rotation - DEG45
+        }, () => {
+            this.canvas.needRedraw();
+        })
     }
 
     toggleBrickOutlines() {
@@ -167,7 +232,7 @@ export default class Atlas extends Component {
 
             let newPan = this.getNewPan(pane, scale);
 
-            this.state.save.render(info.canvas.width, info.canvas.height, newPan.x, newPan.y, scale);
+            this.state.save.render(info.canvas.width, info.canvas.height, newPan.x, newPan.y, scale, this.state.rotation);
 
             this.state.pan = newPan;
             this.state.pane.x = pane.x;
@@ -221,7 +286,7 @@ export default class Atlas extends Component {
                         }}>
                             {this.state.fileErrorMsg}
                         </Alert>
-                        <Input type='file' name='file' id='file' onChange={this.loadFile}/>
+                        <Input type='file' name='file' id='file' onChange={this.handleFileSelected}/>
                     </Col>
                 </Row>
             </Container>
@@ -242,7 +307,7 @@ export default class Atlas extends Component {
              fileInput.click();
     }
 
-    loadFile(event) {
+    handleFileSelected(event) {
         let file = event.target.files[0];
 
         if (!file)
@@ -258,6 +323,10 @@ export default class Atlas extends Component {
             return;
         }
 
+        this.loadFile(file);
+    }
+
+    loadFile(file) {
         this.setState({
             fileError: false,
             loading: true,

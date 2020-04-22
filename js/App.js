@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import {Container, Row, Col} from "reactstrap";
 
 import "bootstrap/dist/css/bootstrap.css";
-import "./Atlas/EasyButton/easy-button.css";
 
 import Header from "./Margins/Header";
 import Atlas from "./Atlas/Atlas";
@@ -22,20 +21,20 @@ export default class App extends Component {
                             <p>Use <a href="https://www.reheatedcake.io/bls2brs/">bls2brs</a> if you want to try and load a save from Blockland, results may vary</p>
                             <h2>Planned Features</h2>
                             <ul>
-                                <li>Map rotation</li>
-                                <li>Default saves</li>
-                                <li>Chunk rendering for improved performance</li>
-                                <li>Image exporting</li>
-                                <li>Altitude cutoff for viewing inside structures</li>
-                                <li>Color adjustment options</li>
+                                <li>map rotation</li>
+                                <li>topographic lines</li>
+                                <li>chunk rendering for improved performance</li>
+                                <li>image exporting</li>
+                                <li>altitude cutoff for viewing inside structures</li>
+                                <li>color adjustment options</li>
                             </ul>
                             <h2>Known Issues</h2>
                             <ul>
-                                <li>Certain saves will not load (e.g: Brickadia City) due to error w/ brs-rs</li>
-                                <li>Zooming w/ mouse/shift-drag does not pan appropiately</li>
-                                <li>Switching between fullscreen and standard views will not adjust view to center</li>
-                                <li>Many unsupported bricks</li>
-                                <li>Incorrect outlines on certain bricks</li>
+                                <li>certain saves will not load (e.g: Brickadia City) due to error w/ brs-rs</li>
+                                <li>zooming w/ mouse/shift-drag does not pan appropiately</li>
+                                <li>switching between fullscreen and standard views will not adjust view to center</li>
+                                <li>many unsupported bricks</li>
+                                <li>incorrect outlines on certain bricks</li>
                             </ul>
                             <h2>Release Notes</h2>
                             <h3>v0.1</h3>

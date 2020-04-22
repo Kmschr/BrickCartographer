@@ -35,9 +35,9 @@ module.exports = {
         include: path.join(__dirname, './', 'js'),
       },
       { test: /\.css$/, use: ['style-loader', 'css-loader'] },
-      { test: /\.(png|jpg|gif|svg)$/, use: {
+      { test: /\.(png|jpg|gif|svg|brs)$/, use: {
         loader: 'file-loader',
-        options: { name: 'images/[name]-[hash:8].[ext]' }}
+        options: { name: 'files/[name]-[hash:8].[ext]' }}
       }
     ]
   }

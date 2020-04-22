@@ -93,7 +93,7 @@ pub fn get_rendering_context() -> (Option<WebGlRenderingContext>, Option<WebGlUn
     (Some(gl), matrix_uniform_location)
 }
 
-pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32) -> Result<(), JsValue> {
+pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32, rotation: f32) -> Result<(), JsValue> {
     let gl = &save.context;
 
     gl.viewport(0, 0, size.x as i32, size.y as i32);
@@ -105,7 +105,7 @@ pub fn render(save: &JsSave, size: Point, pan: Point, scale: f32) -> Result<(), 
     matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
     matrix = m3::scale(matrix, scale, scale);
     matrix = m3::translate(matrix, pan.x, pan.y);
-    matrix = m3::rotate(matrix, 0.0);
+    matrix = m3::rotate(matrix, rotation);
     matrix = m3::translate(matrix, -save.center.x, -save.center.y);
 
     gl.uniform_matrix3fv_with_f32_array(Some(save.u_matrix.as_ref()), false, &matrix);

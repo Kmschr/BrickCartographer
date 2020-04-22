@@ -301,9 +301,9 @@ impl JsSave {
         Ok(())
     }
 
-    pub fn render(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32) -> Result<(), JsValue> {
+    pub fn render(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {
         let pan = Point { x: pan_x, y: pan_y};
         let size = Point { x: size_x as f32, y: size_y as f32};
-        webgl::render(&self, size, pan, scale)
+        webgl::render(&self, size, pan, scale, rotation)
     }
 }
