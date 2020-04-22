@@ -12,7 +12,8 @@ import ACM_City from "../../default_saves/ACM_City.brs";
 
 const MAP_CENTER_DEFAULT = [0, 0];
 const MAP_ZOOM_DEFAULT = 0;
-const MAP_ZOOM_MIN = -6;
+const MAP_ZOOM_MIN = -8;
+const MAP_ZOOM_MAX = 3;
 
 const ROTATE_ANGLE = Math.PI / 8;
 
@@ -56,6 +57,7 @@ export default class Atlas extends Component {
             center: MAP_CENTER_DEFAULT,
             zoom: MAP_ZOOM_DEFAULT,
             minZoom: MAP_ZOOM_MIN,
+            maxZoom: MAP_ZOOM_MAX,
             attributionControl: false,
             scrollWheelZoom: true,
             doubleClickZoom: false,
@@ -84,7 +86,7 @@ export default class Atlas extends Component {
             states: [{
                 icon: '<i class="fas fa-undo map-button"></i>',
                 title: 'Rotate CCW',
-                onClick: this.rotateCW.bind(this)
+                onClick: this.rotateCCW.bind(this)
             }]
         });
         let CW = L.easyButton({
@@ -92,11 +94,20 @@ export default class Atlas extends Component {
             states: [{
                 icon: '<i class="fas fa-redo map-button"></i>',
                 title: 'Rotate CW',
-                onClick: this.rotateCCW.bind(this)
+                onClick: this.rotateCW.bind(this)
             }]
         });
         L.easyBar([CCW, CW], {
             position: 'topleft'
+        }).addTo(this.map);
+
+        L.easyButton({
+            position: 'topleft',
+            states: [{
+                icon: '<i class="fas fa-home map-button"></i>',
+                title: 'Reset Position',
+                onClick: this.goToCenter.bind(this)
+            }]
         }).addTo(this.map);
 
         L.easyButton({
@@ -203,6 +214,11 @@ export default class Atlas extends Component {
         })
     }
 
+    goToCenter() {
+        this.resetPan();
+        this.canvas.needRedraw();
+    }
+
     toggleBrickOutlines() {
         if (this.state.save) {
             this.setState({
@@ -282,7 +298,7 @@ export default class Atlas extends Component {
         return (
             <Container>
                 <Row>
-                    <Col sm={12} md={{ size: 9, offset: 0 }}>
+                    <Col>
                         <div id="map-container" className="map-container"><div id='map' /></div>
                         <SaveInfo map={this.state.map} save={this.state.save} />
                         {this.renderSpinner()}

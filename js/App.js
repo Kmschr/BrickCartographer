@@ -23,6 +23,7 @@ export default class App extends Component {
                             <ul>
                                 <li>altitude cutoff for viewing inside structures</li>
                                 <li>color adjustment options</li>
+                                <li>isometric view</li>
                                 <li>topographic lines</li>
                                 <li>chunk rendering for improved performance</li>
                             </ul>
@@ -36,13 +37,14 @@ export default class App extends Component {
                             <h2>Release Notes</h2>
                             <h3>v0.2</h3>
                             <ul>
-                                <li>redid some UI elements</li>
+                                <li>redid some UI elements and put pretty icons</li>
                                 <li>now able to hide brick fill</li>
                                 <li>added ACM City as default save</li>
                                 <li>some previous incompatible builds will now load somewhat</li>
                                 <li>added support and proper outlines for more bricks such as ramps and rounds</li>
                                 <li>can now download a render of the map</li>
-                                <li>map is now rotate</li>
+                                <li>map is now can rotate</li>
+                                <li>added button to reset position to center</li>
                             </ul>
                             <h3>v0.1</h3>
                             <ul>

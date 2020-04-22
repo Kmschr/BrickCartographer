@@ -2,7 +2,7 @@ pub const STUD_WIDTH: f32 = 10.0;
 pub const STUD_HEIGHT: f32 = 12.0;
 pub const PLATE_HEIGHT: f32 = 4.0;
 
-pub const OUTLINE_THICKNESS: f32 = 1.5;
+pub const OUTLINE_THICKNESS: f32 = 1.3;
 
 pub const DEG360: f32 = std::f32::consts::PI * 2.0;
 pub const CIRCLE_RES: f32 = 16.0;
