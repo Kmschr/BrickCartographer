@@ -12,14 +12,12 @@ export default class Header extends Component {
         return (
             <div className="full-width header">
                 <div className="vertical-center">
-                    <Container>
-                        <div className="vertical-center">
+                        <div className="vertical-center ml-4">
                             <a href={BRICKADIA_URL} target="_blank">
                                 <img className="tco-logo" src={HeaderLogo} alt="Brickadia Logo"/>
                             </a>
                             <h1 className="tco-text-upper">Brick Cartographer</h1>
                         </div>
-                    </Container>
                 </div>
             </div>
         );

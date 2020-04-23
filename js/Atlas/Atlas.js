@@ -296,11 +296,14 @@ export default class Atlas extends Component {
 
     render() {
         return (
+            <div>
+            <div>
+                <div id="map-container" className="map-container"><div id='map' /></div>
+                <SaveInfo map={this.state.map} save={this.state.save} />
+            </div>        
             <Container>
                 <Row>
                     <Col>
-                        <div id="map-container" className="map-container"><div id='map' /></div>
-                        <SaveInfo map={this.state.map} save={this.state.save} />
                         {this.renderSpinner()}
                         <Alert color="danger" isOpen={this.state.fileError} toggle={_ => {
                             this.setState({fileError: false})
@@ -311,6 +314,7 @@ export default class Atlas extends Component {
                     </Col>
                 </Row>
             </Container>
+            </div>
         )
     }
 

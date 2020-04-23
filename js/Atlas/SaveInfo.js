@@ -8,7 +8,7 @@ export default class SaveInfo extends Component {
         if (this.props.save) {
             return (
                 <Jumbotron id="saveInfo" fluid>
-                    <Container fluid>
+                    <Container fluid className="save-info">
                         <h1 className="display-4">{this.props.map}</h1>
                         <hr className="my-2" />
                         {this.renderBrickCount()}
