@@ -29,15 +29,17 @@ export default class Atlas extends Component {
         this.onDrawLayer = this.onDrawLayer.bind(this);
         this.getNewPan = this.getNewPan.bind(this);
         this.resetPan = this.resetPan.bind(this);
+        this.setPan = this.setPan.bind(this);
         this.processSave = this.processSave.bind(this);
         this.toggleFullscreen = this.toggleFullscreen.bind(this);
         this.takeScreenshot = this.takeScreenshot.bind(this);
+        this.takeHDScreenshot = this.takeHDScreenshot.bind(this);
         this.toggleBrickOutlines = this.toggleBrickOutlines.bind(this);
         this.loadDefaultCity = this.loadDefaultCity.bind(this);
         this.toggleBrickFill = this.toggleBrickFill.bind(this);
         this.state = {
             fileError: false,
-            fileErrorMsg: null,
+            fileErrorMsg: '',
             loading: false,
             map: null,
             save: null,
@@ -78,6 +80,15 @@ export default class Atlas extends Component {
                 icon: '<i class="fas fa-camera map-button"></i>',
                 title: 'Take Screenshot',
                 onClick: this.takeScreenshot
+            }]
+        }).addTo(this.map);
+
+        L.easyButton({
+            position: 'bottomright',
+            states: [{
+                icon: '<i><b>HD</b></i>',
+                title: 'Save High-Res Render',
+                onClick: this.takeHDScreenshot
             }]
         }).addTo(this.map);
 
@@ -143,6 +154,12 @@ export default class Atlas extends Component {
         this.canvas = L.canvasLayer().delegate(this);
         this.canvas.addTo(this.map);
 
+        wasm.then(rust => rust.getImageCombiner()).then(
+            ic => {
+                this.imageCombiner = ic;
+            }
+        );
+
         this.loadDefaultCity();
     }
 
@@ -193,9 +210,69 @@ export default class Atlas extends Component {
             let scale = Math.pow(2, this.map.getZoom());
             this.state.save.render(this.canvas._canvas.width, this.canvas._canvas.height, this.state.pan.x, this.state.pan.y, scale, this.state.rotation);
             this.canvas._canvas.toBlob((blob) => {
+                this.resetPan();
+                this.canvas.needRedraw();
                 saveBlob(blob, `${this.state.map}.png`);
             });
         }
+    }
+
+    takeHDScreenshot() {
+        if (this.state.save) {
+            this.imageCombiner.setSize(this.canvas._canvas.width, this.canvas._canvas.height);
+
+            let scale = Math.pow(2, this.map.getZoom());
+            let bounds = this.state.save.bounds();
+
+            let canvasWidth = this.canvas._canvas.width / scale;
+            let canvasHeight = this.canvas._canvas.height / scale;
+
+            bounds[0] += canvasWidth / 2;
+            bounds[1] += canvasHeight / 2;
+
+            let imageWidth = (bounds[2] - bounds[0]);
+            let imageHeight = (bounds[3] - bounds[1]);
+
+            let numCols = Math.ceil(imageWidth / canvasWidth);
+            let numRows = Math.ceil(imageHeight / canvasHeight);
+            let numImages = numRows * numCols;
+            
+            let imageIndex = 0;
+            for (let col = 0; col < numCols; col++) {
+                for (let row=0; row < numRows; row++) {
+                    let x = col * canvasWidth;
+                    let y = row * canvasHeight;
+
+                    this.setPan(-bounds[0] - x, -bounds[1] - y);
+                    this.state.save.render(this.canvas._canvas.width, this.canvas._canvas.height, this.state.pan.x, this.state.pan.y, scale, this.state.rotation);
+                    this.canvas._canvas.toBlob((blob) => {
+                        blob.arrayBuffer().then(buff => {
+                            let u8buff = new Uint8Array(buff);
+                            this.imageCombiner.pushImage(u8buff, row*numCols + col);
+                            imageIndex++;
+                            if (imageIndex === numImages) {
+                                try {
+                                    let buffer = this.imageCombiner.combineImages(numRows, numCols);
+                                    let merged = new Blob([buffer.buffer]);
+                                    //console.log(merged);
+                                    saveBlob(merged, `${this.state.map}.png`);
+                                } catch (err) {
+                                    console.log(err);
+                                }
+                            }
+                        });
+                    }, "image/png")
+                }
+            }
+        }
+    }
+
+    setPan(x, y) {
+        this.state.pane = null;
+        this.state.pan = {
+            x: x,
+            y: y
+        };
     }
 
     rotateCCW() {
@@ -386,7 +463,7 @@ export default class Atlas extends Component {
             loading: true
         }, () => {
                 try {
-                    this.state.save.processBricks(this.state.showOutlines, this.state.fillBricks);
+                    this.state.save.buildVertexBuffer(this.state.showOutlines, this.state.fillBricks);
                     this.setState({loading: false});
                 } catch (err) {
                     this.setState({

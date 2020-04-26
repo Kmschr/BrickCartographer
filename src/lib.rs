@@ -1,19 +1,22 @@
 extern crate brs;
 extern crate js_sys;
 extern crate web_sys;
+extern crate image;
 extern crate wasm_bindgen;
+extern crate console_error_panic_hook;
 
 mod webgl;
 mod graphics;
+mod image_combiner;
 mod bricks;
-mod save;
+mod process;
 mod color;
-
-use brs::{HasHeader2};
+mod util;
+mod m3;
 
 use wasm_bindgen::prelude::*;
-use graphics::*;
-use save::JsSave;
+use process::BRSProcessor;
+use image_combiner::ImageCombiner;
 use color::Color;
 
 #[wasm_bindgen]
@@ -23,36 +26,13 @@ extern "C" {
 }
 
 #[wasm_bindgen(js_name = loadFile)]
-pub fn load_file(body: Vec<u8>) -> Result<JsSave, JsValue> {
-    let reader = match brs::Reader::new(body.as_slice()) {
-        Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error reading file")),
-    };
-    let reader = match reader.read_header1() {
-        Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error reading header1")),
-    };
-    let reader = match reader.read_header2() {
-        Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error reading header2")),
-    };
-    let (reader, bricks) = match reader.iter_bricks_and_reader() {
-        Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error reading bricks")),
-    };
-    let assets = reader.brick_assets().to_vec();
-    let (rendering_context, uniform_location) = webgl::get_rendering_context();
-    Ok(JsSave {
-        reader,
-        unmodified_bricks: bricks
-            .filter_map(Result::ok)
-            .collect(),
-        bricks: Vec::new(),
-        brick_assets: assets,
-        context: rendering_context.unwrap(),
-        u_matrix: uniform_location.unwrap(),
-        colors: Vec::new(),
-        center: Point {x:0.0, y:0.0},
-        vertex_buffer: Vec::new(),
-    })
+pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
+    BRSProcessor::load_file(body)
 }
+
+#[wasm_bindgen(js_name = getImageCombiner)]
+pub fn get_image_combiner() -> ImageCombiner {
+    console_error_panic_hook::set_once();
+    ImageCombiner::new()
+}
+

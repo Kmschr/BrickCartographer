@@ -3,11 +3,15 @@ use crate::webgl;
 use crate::color::*;
 use crate::graphics::*;
 use crate::bricks::*;
+use crate::m3;
+use crate::*;
 
 use std::collections::HashSet;
-use brs::{HasHeader1, HasHeader2, Direction, Rotation};
+
 use web_sys::{WebGlRenderingContext, WebGlUniformLocation};
+use js_sys::Array;
 use wasm_bindgen::prelude::*;
+use brs::{Brick, HasHeader1, HasHeader2, Rotation, Direction};
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct BrickShape {
@@ -19,157 +23,112 @@ pub struct BrickShape {
 }
 
 #[wasm_bindgen]
-pub struct JsSave {
-    #[wasm_bindgen(skip)]
-    pub reader: brs::read::ReaderAfterBricks,
-    #[wasm_bindgen(skip)]
-    pub unmodified_bricks: Vec<brs::Brick>,
-    #[wasm_bindgen(skip)]
-    pub bricks: Vec<brs::Brick>,
-    #[wasm_bindgen(skip)]
-    pub brick_assets: Vec<String>,
-    #[wasm_bindgen(skip)]
-    pub context: WebGlRenderingContext,
-    #[wasm_bindgen(skip)]
-    pub u_matrix: WebGlUniformLocation,
-    #[wasm_bindgen(skip)]
-    pub colors: Vec<Color>,
-    #[wasm_bindgen(skip)]
-    pub center: Point,
-    #[wasm_bindgen(skip)]
-    pub vertex_buffer: Vec<f32>,
+pub struct BRSProcessor {
+    gl: WebGlRenderingContext,
+    matrix_uniform_location: WebGlUniformLocation,
+    centroid: (i32, i32),
+    bounds: (i32, i32, i32, i32),
+    vertex_buffer: Vec<f32>,
+    bricks: Vec<Brick>,
+    brick_assets: Vec<String>,
+    colors: Vec<Color>,
+    description: String,
+    brick_count: i32,
 }
 
 #[wasm_bindgen]
-impl JsSave {
-    // Save info getters for frontend
-    pub fn map(&self) -> String {
-        self.reader.map().to_string()
+impl BRSProcessor {
+    pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
+        let reader = match brs::Reader::new(body.as_slice()) {
+            Ok(v) => v,
+            Err(_e) => return Err(JsValue::from("brs error reading file")),
+        };
+        let reader = match reader.read_header1() {
+            Ok(v) => v,
+            Err(_e) => return Err(JsValue::from("brs error reading header1")),
+        };
+        let reader = match reader.read_header2() {
+            Ok(v) => v,
+            Err(_e) => return Err(JsValue::from("brs error reading header2")),
+        };
+        let (reader, brs_bricks) = match reader.iter_bricks_and_reader() {
+            Ok(v) => v,
+            Err(_e) => return Err(JsValue::from("brs error reading bricks")),
+        };
+        
+        let brick_assets: Vec<String> = reader.brick_assets().to_vec();
+        let mut bricks: Vec<Brick> = brs_bricks
+            .filter_map(|b| util::filter_and_transform_brick(b, &brick_assets))
+            .collect();
+        bricks.sort_unstable_by_key(|b| b.position.2 + b.size.2 as i32);
+    
+         // Get color list as rgba 0.0-1.0 f32
+        let colors: Vec<Color> = reader.colors().iter().map(convert_color).collect();
+    
+        let description: String = reader.description().to_string();
+        let brick_count: i32 = reader.brick_count();
+    
+        let centroid = util::calculate_centroid(&bricks);
+        let bounds = util::calculate_bounds(&bricks, centroid);
+
+        /*
+        let furthest_brick = util::find_furthest_brick(centroid, &bricks);
+        let furthest_brick_owner_index = match furthest_brick.owner_index {
+            None => 0usize,
+            Some(x) => x as usize
+        };
+
+        let mut players = util::brick_count_by_player(&bricks, &reader.brick_owners());
+        players.sort_unstable_by_key(|p| p.brick_count);
+
+        log(&format!("{:?}", bounds));
+        log(&format!("{:?}", furthest_brick));
+       // log(&format!("{:?}", reader.brick_owners()));
+        log(&reader.brick_owners()[furthest_brick_owner_index].name);
+       // log(&format!("{:?}", players));
+       */
+    
+        let (gl, matrix_uniform_location) = webgl::get_rendering_context()?;
+        Ok(BRSProcessor {
+            bricks,
+            brick_assets,
+            colors,
+            description,
+            brick_count,
+            gl,
+            matrix_uniform_location,
+            centroid,
+            bounds,
+            vertex_buffer: Vec::new(),
+        })
     }
+
+    // Save info getters for frontend
     pub fn description(&self) -> String {
-        self.reader.description().to_string()
+        self.description.clone()
     }
     #[wasm_bindgen(js_name = brickCount)]
     pub fn brick_count(&self) -> i32 {
-        self.reader.brick_count()
+        self.brick_count
+    }
+    pub fn bounds(&self) -> Array {
+        let x1 = JsValue::from(self.bounds.0);
+        let y1 = JsValue::from(self.bounds.1);
+        let x2 = JsValue::from(self.bounds.2);
+        let y2 = JsValue::from(self.bounds.3);
+        let bounds = Array::new();
+        bounds.push(&x1);
+        bounds.push(&y1);
+        bounds.push(&x2);
+        bounds.push(&y2);
+        bounds
     }
 
     // Get rendering info needed from bricks
-    #[wasm_bindgen(js_name = processBricks)]
-    pub fn process_bricks(&mut self, draw_ols: bool, draw_fills: bool) -> Result<(), JsValue> {
-        let mut compatible = true;
-
+    #[wasm_bindgen(js_name = buildVertexBuffer)]
+    pub fn build_vertex_buffer(&mut self, draw_ols: bool, draw_fills: bool) -> Result<(), JsValue> {
         // Reset brick transforms
-        self.bricks = self.unmodified_bricks.clone();
         self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * 5);
-
-        // Modify brick dimensions to reflect orientation transforms
-        for brick in &mut self.bricks {
-            if !brick.visibility {
-                continue;
-            }
-
-            let name = &self.brick_assets[brick.asset_name_index as usize];
-            // Check if save is incompatible, which can usually be determined by brick owner index being out of bounds
-            let brick_owner_oob = brick.owner_index as usize > self.reader.brick_owners().len();
-            if brick_owner_oob {
-                compatible = false;
-            }
-
-            //log(&format!("{:?}", brick));
-            //log(name);
-
-            // Give size to non procedural bricks
-            match name.as_str() {
-                "B_2x2_Corner" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = STUD_WIDTH as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                "B_2x_Cube_Side" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = STUD_WIDTH as u32;
-                    brick.size.2 = STUD_HEIGHT as u32;
-                },
-                "B_1x1_Brick_Side" => {
-                    brick.size.0 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                "B_1x4_Brick_Side" => {
-                    brick.size.0 = (STUD_WIDTH*2.0) as u32;
-                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                "B_1x2f_Plate_Center" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                "B_2x2f_Plate_Center" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = STUD_WIDTH as u32;
-                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
-                },
-                "B_1x2f_Plate_Center_Inv" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                "B_2x2f_Plate_Center_Inv" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = STUD_WIDTH as u32;
-                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
-                },
-                "B_1x1F_Round" => {
-                    brick.size.0 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
-                },
-                "B_1x1_Round" => {
-                    brick.size.0 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.1 = (STUD_WIDTH/2.0) as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                "B_2x2F_Round" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = STUD_WIDTH as u32;
-                    brick.size.2 = (PLATE_HEIGHT/2.0) as u32;
-                },
-                "B_2x2_Round" => {
-                    brick.size.0 = STUD_WIDTH as u32;
-                    brick.size.1 = STUD_WIDTH as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                "B_4x4_Round" => {
-                    brick.size.0 = (STUD_WIDTH*2.0) as u32;
-                    brick.size.1 = (STUD_WIDTH*2.0) as u32;
-                    brick.size.2 = (STUD_HEIGHT/2.0) as u32;
-                },
-                _ => ()
-            }
-
-            // Apply Rotation
-            if brick.rotation == Rotation::Deg90 || brick.rotation == Rotation::Deg270 {
-                std::mem::swap(&mut brick.size.0, &mut brick.size.1);
-            }
-
-            // Apply Direction
-            if brick.direction == Direction::XPositive || brick.direction == Direction::XNegative {
-                std::mem::swap(&mut brick.size.0, &mut brick.size.2);
-            }
-            else if brick.direction == Direction::YPositive || brick.direction == Direction::YNegative {
-                std::mem::swap(&mut brick.size.0, &mut brick.size.1);
-                std::mem::swap(&mut brick.size.1, &mut brick.size.2);
-            }
-
-            if brick.size.0 > (STUD_WIDTH * 200.0) as u32 || brick.size.1 > (STUD_WIDTH * 200.0) as u32 || brick.size.2 > (PLATE_HEIGHT * 500.0) as u32  || brick_owner_oob {
-                brick.visibility = false;
-            }
-        }
-
-        // Now that the bricks are oriented properly, sort by top surface height
-        self.bricks.sort_unstable_by_key(|brick| brick.position.2 + brick.size.2 as i32);
 
         // Don't render bricks that are obviously hidden
         let mut unique_shapes = HashSet::<BrickShape>::new();
@@ -192,16 +151,7 @@ impl JsSave {
         }
         //log(&format!("Bricks Rendered: {}", unique_shapes.len()));
         //log(&format!("Bricks Discarded: {}", copy_count));
-
-        // Sums for calculating Centroid of save
-        let mut area_sum = 0.0;
-        let mut point_sum = Point {x:0.0, y:0.0};
-
-        // Get color list as rgba 0.0-1.0 f32
-        self.colors = self.reader.colors().iter().map(convert_color).collect();
-        
-
-        
+       
         // Calculate shapes for rendering and save Centroid
         for brick in &self.bricks {
             if !brick.visibility {
@@ -302,37 +252,43 @@ impl JsSave {
                 };
                 self.vertex_buffer.append(&mut outline.get_vertex_array());
             }
-            
-            // Add to Centroid calculation sums
-            let area = brick.size.0 * brick.size.1;
-            point_sum.x += (brick.position.0 * area as i32) as f32;
-            point_sum.y += (brick.position.1 * area as i32) as f32;
-            area_sum += area as f32;
+
         }
 
-        // Calculate Centroid
-        self.center = Point {
-            x: point_sum.x / area_sum,
-            y: point_sum.y / area_sum,
-        };
-
         unsafe {
-            self.context.buffer_data_with_array_buffer_view(
+            self.gl.buffer_data_with_array_buffer_view(
                 WebGlRenderingContext::ARRAY_BUFFER,
                 &js_sys::Float32Array::view(&self.vertex_buffer),
                 WebGlRenderingContext::STATIC_DRAW
             );
         }
 
-        if !compatible {
-            return Err(JsValue::from_str("Save version not compatible w/ brs-rs"));
-        }
         Ok(())
     }
 
     pub fn render(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {
         let pan = Point { x: pan_x, y: pan_y};
         let size = Point { x: size_x as f32, y: size_y as f32};
-        webgl::render(&self, size, pan, scale, rotation)
+
+        self.gl.viewport(0, 0, size.x as i32, size.y as i32);
+
+        self.gl.clear_color(0.8, 0.8, 0.8, 1.0);
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+
+        let mut matrix = m3::projection(size.x, size.y);
+        matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
+        matrix = m3::scale(matrix, scale, scale);
+        matrix = m3::rotate(matrix, rotation);
+        matrix = m3::translate(matrix, pan.x - self.centroid.0 as f32, pan.y - self.centroid.1 as f32);
+
+        self.gl.uniform_matrix3fv_with_f32_array(Some(self.matrix_uniform_location.as_ref()), false, &matrix);
+
+        let vertex_count = (self.vertex_buffer.len() / 5) as i32;
+
+        if vertex_count > 0 {
+            self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
+        }
+
+        Ok(())
     }
 }
