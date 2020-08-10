@@ -9,6 +9,9 @@ license = "GNU"
 [lib]
 crate-type = ["cdylib"]
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [dependencies]
 brs = { git = "https://github.com/brickadia/brs" }
 wasm-bindgen = "0.2.60"
