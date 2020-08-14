@@ -150,7 +150,7 @@ impl BRSProcessor {
             }
         }
         //log(&format!("Bricks Rendered: {}", unique_shapes.len()));
-        //log(&format!("Bricks Discarded: {}", copy_count));
+        log(&format!("Bricks Discarded: {}", copy_count));
        
         // Calculate shapes for rendering and save Centroid
         for brick in &self.bricks {

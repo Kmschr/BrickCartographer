@@ -33,6 +33,6 @@ pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
 #[wasm_bindgen(js_name = getImageCombiner)]
 pub fn get_image_combiner() -> ImageCombiner {
     console_error_panic_hook::set_once();
-    ImageCombiner::new()
+    ImageCombiner::default()
 }
 

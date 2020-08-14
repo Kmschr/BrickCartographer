@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use image::{ImageFormat, DynamicImage, load_from_memory_with_format, ImageBuffer, RgbaImage, Rgba};
+use image::{ImageFormat, DynamicImage, load_from_memory_with_format, ImageBuffer, RgbaImage};
 use image::png::PNGEncoder;
 
 #[wasm_bindgen]
@@ -9,16 +9,18 @@ pub struct ImageCombiner {
     height: u32,
 }
 
-#[wasm_bindgen]
-impl ImageCombiner {
-    pub fn new() -> ImageCombiner {
+impl Default for ImageCombiner {
+    fn default() -> ImageCombiner {
         ImageCombiner {
             images: vec![Vec::new(); 1000],
             width: 800,
             height: 600,
         }
     }
+}
 
+#[wasm_bindgen]
+impl ImageCombiner {
     #[wasm_bindgen(js_name = pushImage)]
     pub fn add_image(&mut self, image: Vec<u8>, index: i32) {
         self.images[index as usize] = image;

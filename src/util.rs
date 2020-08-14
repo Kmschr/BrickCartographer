@@ -1,7 +1,6 @@
 use std::io;
-use brs::{Brick, Rotation, Direction, User};
-use bricks::{STUD_WIDTH, STUD_HEIGHT, PLATE_HEIGHT, Shape};
-use graphics::Point;
+use brs::{Brick, Rotation, Direction};
+use bricks::{STUD_WIDTH, STUD_HEIGHT, PLATE_HEIGHT};
 
 pub fn filter_and_transform_brick(brick: io::Result<Brick>, brick_assets: &[String]) -> Option<Brick> {
     match brick {
