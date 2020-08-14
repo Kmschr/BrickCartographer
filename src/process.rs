@@ -272,7 +272,7 @@ impl BRSProcessor {
 
         self.gl.viewport(0, 0, size.x as i32, size.y as i32);
 
-        self.gl.clear_color(0.8, 0.8, 0.8, 1.0);
+        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
 
         let mut matrix = m3::projection(size.x, size.y);
@@ -288,6 +288,8 @@ impl BRSProcessor {
         if vertex_count > 0 {
             self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
         }
+
+        
 
         Ok(())
     }

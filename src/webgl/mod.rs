@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use std::convert::TryInto;
 use web_sys::{WebGlRenderingContext, WebGlUniformLocation};
+use crate::error;
 
 mod glsl;
 
@@ -9,23 +10,38 @@ mod glsl;
 
 pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLocation), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
-    let canvas = document.get_elements_by_class_name("map-canvas").get_with_index(0).unwrap();
+    let canvas = match document.get_elements_by_class_name("map-canvas").get_with_index(0) {
+        Some(v) => v,
+        None => {
+            error("RUST ERROR: Unable to find element with map-canvas class");
+            return Err(JsValue::from("Unable to find element with map-canvas class"))
+        }
+    };
     let canvas: web_sys::HtmlCanvasElement = match canvas.dyn_into::<web_sys::HtmlCanvasElement>() {
         Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Unable to find HtmlCanvasElement")),
+        Err(_e) => {
+            error("RUST ERROR: Unable to find HtmlCanvasElement");
+            return Err(JsValue::from("Unable to find HtmlCanvasElement"))
+        }
     };
 
     let context = match canvas.get_context("webgl") {
         Ok(v) => v,
         Err(_e) => match canvas.get_context("webgl-experimental") {
             Ok(v) => v,
-            Err(_e) => return Err(JsValue::from("No WebGl support by browser")),
-        },
+            Err(_e) => {
+                error("RUST ERROR: No WebGl support by browser");
+                return Err(JsValue::from("No WebGl support by browser"))
+            }
+        }
     };
         
     let gl = match context.unwrap().dyn_into::<WebGlRenderingContext>() {
         Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error transforming webgl context")),
+        Err(_e) => {
+            error("RUST ERROR: Error transforming webgl context");
+            return Err(JsValue::from("Error transforming webgl context"))
+        }
     };
 
     let vert_shader = match glsl::compile_shader(
@@ -34,7 +50,10 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
         glsl::VERTEX_SHADER_CODE,
     ) {
         Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error in vertex shader code"))
+        Err(_e) => {
+            error("RUST ERROR: Error in vertex shader code");
+            return Err(JsValue::from("Error in vertex shader code"))
+        }
     };
     let frag_shader = match glsl::compile_shader(
         &gl,
@@ -42,11 +61,17 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
         glsl::FRAGMENT_SHADER_CODE,
     ){
         Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error in fragment shader code"))
+        Err(_e) => {
+            error("RUST ERROR: Error in fragment shader code");
+            return Err(JsValue::from("Error in fragment shader code"))
+        }
     };
     let program = match glsl::link_program(&gl, &vert_shader, &frag_shader) {
         Ok(v) => v,
-        Err(_e) => return Err(JsValue::from("Error linking shaders"))
+        Err(_e) => {
+            error("RUST ERROR: Error linking shaders");
+            return Err(JsValue::from("Error linking shaders"))
+        }
     };
     gl.use_program(Some(&program));
 
