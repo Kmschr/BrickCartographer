@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "description": "Brickadia mapping tool",
   "author": "Kmschr <Kmschr@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kmschr/BrickCartographer"
+  },
+  "license": "GPL-3.0-only",
   "scripts": {
-    "build": "wasm-pack build && npm i && cross-env webpack --config ./webpack.prod.config.js --progress --colors && cp index.html favicon.ico dist/public",
+    "build": "wasm-pack build && npm i && cross-env webpack --config ./webpack.prod.config.js --progress --colors",
     "dev": "cross-env webpack-dev-server --config ./webpack.dev.config.js"
   },
   "dependencies": {
@@ -18,7 +23,6 @@
     "cross-env": "^7.0.2",
     "css-loader": "^3.6.0",
     "file-loader": "^6.0.0",
-    "html-webpack-plugin": "^4.3.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "style-loader": "^1.2.1",
