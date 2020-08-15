@@ -6,7 +6,7 @@ use crate::error;
 
 mod glsl;
 
-//const MAX_BRICK_DISTANCE: i32 = 10 * 10000;
+pub const VERTEX_SIZE:i32 = 5;
 
 pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLocation), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
@@ -87,7 +87,7 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
         2, // Number of elements per attribute
         WebGlRenderingContext::FLOAT, 
         false, 
-        5 * std::mem::size_of::<f32>() as i32,  // Size of individual vertex
+        VERTEX_SIZE * std::mem::size_of::<f32>() as i32,  // Size of individual vertex
         0 // Offset from beginning of a vertex to this attribute
     );
     gl.vertex_attrib_pointer_with_i32(
@@ -95,7 +95,7 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
         3, // Number of elements per attribute
         WebGlRenderingContext::FLOAT,
         false,
-        5 * std::mem::size_of::<f32>() as i32,  // Size of individual vertex
+        VERTEX_SIZE * std::mem::size_of::<f32>() as i32,  // Size of individual vertex
         2 * std::mem::size_of::<f32>() as i32   // Offset from beginning of a vertex to this attribute
     );
 

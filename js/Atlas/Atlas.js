@@ -1,12 +1,12 @@
 import React, {Component} from 'react';
 import {saveBlob} from "./util";
-import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, PHOTO, MAP, LOAD, GITHUB} from "./icons";
+import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, MOUNTAIN, PHOTO, MAP, LOAD, GITHUB} from "./icons";
 
 import ACM_City from "../../default_saves/ACM_City.brs";
 
 const DEFAULT_ROTATION = 0;
 const ROTATE_ANGLE = Math.PI / 8;
-const DEFAULT_SCALE = 0.5;
+const DEFAULT_SCALE = 0.1;
 const MAX_SCALE = 20;
 const MIN_SCALE = 0.01;
 const SCROLL_INTENSITY = 1.2;
@@ -27,11 +27,13 @@ export default class Atlas extends Component {
         this.toggleBrickOutlines = this.toggleBrickOutlines.bind(this);
         this.loadDefaultCity = this.loadDefaultCity.bind(this);
         this.toggleBrickFill = this.toggleBrickFill.bind(this);
+        this.toggleHeightmap = this.toggleHeightmap.bind(this);
         this.state = {
             save: null,
             fullscreen: false,
             showOutlines: false,
             fillBricks: true,
+            showHeightmap: false,
             rotation: DEFAULT_ROTATION,
             scale: DEFAULT_SCALE,
             pan: {
@@ -48,11 +50,15 @@ export default class Atlas extends Component {
     render() {
         let borderButtonClassName = "map-button border-button svg-button";
         let fillButtonClassName = "map-button fill-button svg-button";
+        let heightmapButtonClassName = "map-button heightmap-button svg-button";
         if (this.state.showOutlines) {
             borderButtonClassName += " button-toggled";
         }
         if (this.state.fillBricks) {
             fillButtonClassName += " button-toggled";
+        }
+        if (this.state.showHeightmap) {
+            heightmapButtonClassName += " button-toggled";
         }
 
         return (
@@ -78,6 +84,7 @@ export default class Atlas extends Component {
                 <div className="button-label fill-label">FILL</div>
                 <div className={borderButtonClassName} title="Toggle Brick Borders" onClick={this.toggleBrickOutlines}>{BORDERS}</div>
                 <div className={fillButtonClassName} title="Toggle Brick Fill" onClick={this.toggleBrickFill}>{FILL}</div>
+                <div className={heightmapButtonClassName} title="Toggle Heightmap" onClick={this.toggleHeightmap}>{MOUNTAIN}</div>
                 <div className="button-label save-label">SAVE</div>
                 <div className="map-button photo-button svg-button" title="Save Current View" onClick={this.takeScreenshot}>{PHOTO}</div>
                 <div className="map-button hd-photo-button svg-button" title="Save Entire Map (WIP)" onClick={this.takeHDScreenshot}>{MAP}</div>
@@ -287,7 +294,8 @@ export default class Atlas extends Component {
     toggleBrickOutlines() {
         if (this.state.save) {
             this.setState({
-                showOutlines: !this.state.showOutlines
+                showOutlines: !this.state.showOutlines,
+                showHeightmap: false
             }, () => {
                 this.processSave();
             });
@@ -297,7 +305,20 @@ export default class Atlas extends Component {
     toggleBrickFill() {
         if (this.state.save) {
             this.setState({
-                fillBricks: !this.state.fillBricks
+                fillBricks: !this.state.fillBricks,
+                showHeightmap: false,
+            }, () => {
+                this.processSave();
+            })
+        }
+    }
+
+    toggleHeightmap() {
+        if (this.state.save) {
+            this.setState({
+                showHeightmap: !this.state.showHeightmap,
+                fillBricks: false,
+                showOutlines: false
             }, () => {
                 this.processSave();
             })
@@ -367,7 +388,11 @@ export default class Atlas extends Component {
 
     processSave(resetPan) {
         try {
-            this.state.save.buildVertexBuffer(this.state.showOutlines, this.state.fillBricks);
+            if (this.state.showHeightmap) {
+                this.state.save.buildHeightmapVertexBuffer();
+            } else {
+                this.state.save.buildVertexBuffer(this.state.showOutlines, this.state.fillBricks);
+            }
         } catch (err) {
             console.error(err);
         }

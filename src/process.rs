@@ -1,5 +1,5 @@
 use crate::log;
-use crate::webgl;
+use crate::webgl::*;
 use crate::color::*;
 use crate::graphics::*;
 use crate::bricks::*;
@@ -89,7 +89,8 @@ impl BRSProcessor {
        */
     
         let (gl, matrix_uniform_location) = webgl::get_rendering_context()?;
-        Ok(BRSProcessor {
+
+        let mut processor = BRSProcessor {
             bricks,
             brick_assets,
             colors,
@@ -100,7 +101,11 @@ impl BRSProcessor {
             centroid,
             bounds,
             vertex_buffer: Vec::new(),
-        })
+        };
+
+        processor.discard_hidden_bricks();
+
+        Ok(processor)
     }
 
     // Save info getters for frontend
@@ -127,10 +132,9 @@ impl BRSProcessor {
     // Get rendering info needed from bricks
     #[wasm_bindgen(js_name = buildVertexBuffer)]
     pub fn build_vertex_buffer(&mut self, draw_ols: bool, draw_fills: bool) -> Result<(), JsValue> {
-        // Reset brick transforms
-        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * 5);
+        self.clear_vertex_buffer();
 
-        // Don't render bricks that are obviously hidden
+        // Don't render bricks that are obviously hidden (same sized bricks stacked on top of eachother)
         let mut unique_shapes = HashSet::<BrickShape>::new();
         let mut copy_count = 0;
         for i in (0..self.bricks.len()).rev() {
@@ -255,6 +259,91 @@ impl BRSProcessor {
 
         }
 
+        self.gl_buffer_data();
+
+        Ok(())
+    }
+
+    #[wasm_bindgen(js_name = buildHeightmapVertexBuffer)]
+    pub fn build_heightmap_vertex_buffer(&mut self) -> Result<(), JsValue> {
+        self.clear_vertex_buffer();
+
+        let mut min_height:i32 = std::i32::MAX;
+        let mut max_height:i32 = std::i32::MIN;
+
+        for brick in &self.bricks {
+            let height = brick.position.2;
+            min_height = std::cmp::min(min_height, height);
+            max_height = std::cmp::max(max_height, height);
+        }
+       
+        // Calculate shapes for rendering and save Centroid
+        for brick in &self.bricks {
+            if !brick.visibility {
+                continue;
+            }
+
+            let name = &self.brick_assets[brick.asset_name_index as usize];
+
+            // Add brick as shape for rendering
+            let shape = Shape {
+                x1: (brick.position.0 - brick.size.0 as i32) as f32,
+                y1: (brick.position.1 - brick.size.1 as i32) as f32,
+                x2: (brick.position.0 + brick.size.0 as i32) as f32,
+                y2: (brick.position.1 + brick.size.1 as i32) as f32
+            };
+
+            //log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
+            // Calculate Shape vertices
+            let verts = match name.as_str() {
+                "B_2x2_Corner" =>
+                    corner(brick.direction, brick.rotation, &shape),
+                "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
+                    side_wedge(brick.direction, brick.rotation, &shape),
+                "PB_DefaultWedge" =>
+                    wedge(brick.direction, brick.rotation, &shape),
+                "PB_DefaultRamp" =>
+                    ramp(brick.direction, brick.rotation, &shape),
+                "PB_DefaultRampCorner" =>
+                    ramp_corner(brick.direction, brick.rotation, &shape),
+                "PB_DefaultRampCornerInverted" =>
+                    ramp_corner_inverted(brick.direction, brick.rotation, &shape),
+                "PB_DefaultRampCrest" =>
+                    ramp_crest(brick.direction, brick.rotation, &shape),
+                "PB_DefaultRampCrestEnd" =>
+                    ramp_crest_end(brick.direction, brick.rotation, &shape),
+                "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
+                    round(brick.direction, &shape),
+                _ => 
+                    rec(&shape),
+            };
+
+            let height = brick.position.2;
+            let relative_height = (height - min_height) as f32 / (max_height - min_height) as f32;
+
+            // Add shape to save
+            let mut vertex_array = Vec::new();
+            let vertex_count = verts.len() / 2;
+            for i in 0..vertex_count {
+                vertex_array.push(verts[i*2]);
+                vertex_array.push(verts[i*2 + 1]);
+                vertex_array.push(relative_height);
+                vertex_array.push(relative_height);
+                vertex_array.push(relative_height);
+            }
+            self.vertex_buffer.append(&mut vertex_array);
+        }
+
+        self.gl_buffer_data();
+        
+        Ok(())
+    }
+
+    pub fn clear_vertex_buffer(&mut self) {
+        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * VERTEX_SIZE as usize);
+    }
+
+    pub fn gl_buffer_data(&mut self) {
         unsafe {
             self.gl.buffer_data_with_array_buffer_view(
                 WebGlRenderingContext::ARRAY_BUFFER,
@@ -262,8 +351,30 @@ impl BRSProcessor {
                 WebGlRenderingContext::STATIC_DRAW
             );
         }
+    }
 
-        Ok(())
+    pub fn discard_hidden_bricks(&mut self) {
+        // Don't render bricks that are obviously hidden (same sized bricks stacked on top of eachother)
+        let mut unique_shapes = HashSet::<BrickShape>::new();
+        let mut copy_count = 0;
+        for i in (0..self.bricks.len()).rev() {
+            let brick_shape = BrickShape {
+                name_index: self.bricks[i].asset_name_index,
+                position: (self.bricks[i].position.0, self.bricks[i].position.1),
+                size: (self.bricks[i].size.0, self.bricks[i].size.1),
+                rotation: self.bricks[i].rotation,
+                direction: self.bricks[i].direction
+            };
+
+            if unique_shapes.contains(&brick_shape) {
+                self.bricks[i].visibility = false;
+                copy_count += 1;
+            } else {
+                unique_shapes.insert(brick_shape);
+            }
+        }
+        //log(&format!("Bricks Rendered: {}", unique_shapes.len()));
+        log(&format!("Bricks Discarded: {}", copy_count));
     }
 
     pub fn render(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {

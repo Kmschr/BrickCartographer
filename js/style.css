@@ -71,12 +71,12 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
 }
 
 .save-label {
-  top: 406px;
+  top: 442px;
   left: 8px;
 }
 
 .load-label {
-  top: 508px;
+  top: 544px;
   left: 8px;
 }
 
@@ -164,24 +164,25 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
   top: 352px;
 }
 
-.fill-button:focus {
-  background-color: #131D30;
+.heightmap-button,
+.heightmap-button:hover {
+  top: 388px;
 }
 
 .photo-button,
 .photo-button:hover {
-  top: 424px;
+  top: 460px;
   border-bottom: 1px solid #131D30;
 }
 
 .hd-photo-button,
 .hd-photo-button:hover {
-  top: 460px;
+  top: 496px;
 }
 
 .load-button,
 .load-button:hover {
-  top: 530px;
+  top: 566px;
   background-color: #5DA93D;
 }
 

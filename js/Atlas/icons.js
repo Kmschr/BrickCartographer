@@ -36,6 +36,14 @@ export const BORDERS = <svg xmlns="http://www.w3.org/2000/svg" className="icon i
 </g>
 </svg>
 
+export const MOUNTAIN = <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-traffic-cone" width="28" height="28" viewBox="0 0 24 24" stroke-width="1.5" stroke="#A7BBCE" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path stroke="none" d="M0 0h24v24H0z"/>
+<line x1="4" y1="20" x2="20" y2="20" />
+<line x1="9.4" y1="10" x2="14.6" y2="10" />
+<line x1="7.8" y1="15" x2="16.2" y2="15" />
+<path d="M6 20l5 -15h2l5 15" />
+</svg>
+
 export const PHOTO = <svg xmlns="http://www.w3.org/2000/svg" className="icon icon-tabler icon-tabler-photo" width="28" height="28" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#A7BBCE" fill="none" strokeLinecap="round" strokeLinejoin="round">
 <path stroke="none" d="M0 0h24v24H0z"/>
 <line x1="15" y1="8" x2="15.01" y2="8" />
