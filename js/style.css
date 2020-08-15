@@ -42,14 +42,14 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
 }
 
 /* Panel on left that holds all the buttons */
-/* Colored as Primary Background*/
+/* Colored as Secondary Background*/
 .button-panel {
   position: absolute;
   bottom: 0;
   top: 0;
   width: 56px;
   height: 100%;
-  background-color: #1B2F4A;
+  background-color: #131D30;
   box-shadow: 3px 0px 15px 5px rgba(0,0,0,0.5);
 }
 
@@ -116,6 +116,10 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
   padding-right: 2px;
 }
 
+.button-toggled {
+  background-color: #263F61;
+}
+
 /* button positionings */
 .zoom-in-button,
 .zoom-in-button:hover {
@@ -158,6 +162,10 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
 .fill-button,
 .fill-button:hover {
   top: 352px;
+}
+
+.fill-button:focus {
+  background-color: #131D30;
 }
 
 .photo-button,

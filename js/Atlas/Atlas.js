@@ -46,6 +46,15 @@ export default class Atlas extends Component {
     }
 
     render() {
+        let borderButtonClassName = "map-button border-button svg-button";
+        let fillButtonClassName = "map-button fill-button svg-button";
+        if (this.state.showOutlines) {
+            borderButtonClassName += " button-toggled";
+        }
+        if (this.state.fillBricks) {
+            fillButtonClassName += " button-toggled";
+        }
+
         return (
             <div id="ui-container">
                 <div id="map-container" className="map-container" onDragOver={(e) => {e.preventDefault(); e.dataTransfer.dropEffect="move"}}>
@@ -67,8 +76,8 @@ export default class Atlas extends Component {
                 <div className="map-button home-button svg-button" title="Home Position" onClick={() => this.resetPan()}>{HOME}</div>
                 <div className="map-button fullscreen-button svg-button" title="Toggle Fullscreen" onClick={this.toggleFullscreen}>{FULLSCREEN}</div>
                 <div className="button-label fill-label">FILL</div>
-                <div className="map-button border-button svg-button" title="Toggle Brick Borders" onClick={this.toggleBrickOutlines}>{BORDERS}</div>
-                <div className="map-button fill-button svg-button" title="Toggle Brick Fill" onClick={this.toggleBrickFill}>{FILL}</div>
+                <div className={borderButtonClassName} title="Toggle Brick Borders" onClick={this.toggleBrickOutlines}>{BORDERS}</div>
+                <div className={fillButtonClassName} title="Toggle Brick Fill" onClick={this.toggleBrickFill}>{FILL}</div>
                 <div className="button-label save-label">SAVE</div>
                 <div className="map-button photo-button svg-button" title="Save Current View" onClick={this.takeScreenshot}>{PHOTO}</div>
                 <div className="map-button hd-photo-button svg-button" title="Save Entire Map (WIP)" onClick={this.takeHDScreenshot}>{MAP}</div>
