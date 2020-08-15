@@ -181,6 +181,14 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
   background-color: #8DC377;
 }
 
+.github-button {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  width: 36px;
+  height: 36px;
+}
+
 /* invisible file input */
 /* makes load button stylizing possible */
 input[type="file"] {

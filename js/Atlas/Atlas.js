@@ -1,10 +1,13 @@
 import React, {Component} from 'react';
 import {saveBlob} from "./util";
-import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, PHOTO, MAP, LOAD} from "./icons";
+import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, PHOTO, MAP, LOAD, GITHUB} from "./icons";
 
 import ACM_City from "../../default_saves/ACM_City.brs";
 
 const ROTATE_ANGLE = Math.PI / 8;
+const MAX_SCALE = 20;
+const MIN_SCALE = 0.01;
+const SCROLL_INTENSITY = 1.2;
 
 const wasm = import('../../pkg');
 
@@ -69,6 +72,7 @@ export default class Atlas extends Component {
                 <div className="map-button hd-photo-button svg-button" title="Save Entire Map (WIP)" onClick={this.takeHDScreenshot}>{MAP}</div>
                 <div className="button-label load-label">LOAD</div>
                 <div className="map-button load-button svg-button" title="Load Build" onClick={this.clickFileInput}>{LOAD}</div>
+                <a className="github-button" href="https://github.com/Kmschr/BrickCartographer" target="_blank" rel="noopener noreferrer">{GITHUB}</a>
                 <input type='file' name='file' id='file' onChange={(e) => this.handleFileSelected(e)}/>
                 { /*<SaveInfo map={this.state.map} save={this.state.save} /> */ }
             </div>
@@ -123,13 +127,17 @@ export default class Atlas extends Component {
     }
 
     zoomIn() {
-        this.state.scale *= 2;
-        this.redraw();
+        if (this.state.scale < MAX_SCALE) {
+            this.state.scale *= SCROLL_INTENSITY;
+            this.redraw();
+        }
     }
     
     zoomOut() {
-        this.state.scale /= 2;
-        this.redraw();
+        if (this.state.scale > MIN_SCALE) {
+            this.state.scale /= SCROLL_INTENSITY;
+            this.redraw();
+        }
     }
 
     componentDidMount() {
@@ -340,20 +348,16 @@ export default class Atlas extends Component {
     }
 
     processSave(resetPan) {
-        this.setState({
-            loading: true
-        }, () => {
-                try {
-                    this.state.save.buildVertexBuffer(this.state.showOutlines, this.state.fillBricks);
-                } catch (err) {
-                    console.error(err);
-                }
-                if (resetPan)
-                    this.resetPan();
-                this.canvas.style.cursor = null;
-                this.redraw();
-            }
-        );
+        try {
+            this.state.save.buildVertexBuffer(this.state.showOutlines, this.state.fillBricks);
+        } catch (err) {
+            console.error(err);
+        }
+        if (resetPan)
+            this.resetPan();
+        this.canvas.style.cursor = null;
+        this.redraw();
+
     }
 
 }
