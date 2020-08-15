@@ -4,7 +4,9 @@ import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, PHOTO, MAP, LOAD
 
 import ACM_City from "../../default_saves/ACM_City.brs";
 
+const DEFAULT_ROTATION = 0;
 const ROTATE_ANGLE = Math.PI / 8;
+const DEFAULT_SCALE = 0.5;
 const MAX_SCALE = 20;
 const MIN_SCALE = 0.01;
 const SCROLL_INTENSITY = 1.2;
@@ -30,8 +32,8 @@ export default class Atlas extends Component {
             fullscreen: false,
             showOutlines: false,
             fillBricks: true,
-            rotation: 0,
-            scale: 0.5,
+            rotation: DEFAULT_ROTATION,
+            scale: DEFAULT_SCALE,
             pan: {
                 x: 0,
                 y: 0
@@ -56,10 +58,10 @@ export default class Atlas extends Component {
                         onWheel={(e) => this.handleWheelEvent(e)}
                     />
                 </div>
-                <div className="button-panel"></div>
+                <div className="button-panel" onMouseMove={() => this.state.isDragging = false}></div>
                 <div className="button-label view-label">VIEW</div>
-                <div className="map-button zoom-in-button" title="Zoom In" onClick={() => this.zoomIn()}>+</div>
-                <div className="map-button zoom-out-button" title="Zoom Out" onClick={() => this.zoomOut()}>-</div>
+                <div className="map-button zoom-in-button" title="Zoom In" onClick={() => {this.zoomIn(); this.redraw()}}>+</div>
+                <div className="map-button zoom-out-button" title="Zoom Out" onClick={() => {this.zoomOut(); this.redraw()}}>-</div>
                 <div className="map-button rotate-cw-button svg-button" title="Rotate CW" onClick={() => this.rotateCW()}>{ROTATE_CW}</div>
                 <div className="map-button rotate-ccw-button svg-button" title="Rotate CCW" onClick={() => this.rotateCCW()}>{ROTATE_CCW}</div>
                 <div className="map-button home-button svg-button" title="Home Position" onClick={() => this.resetPan()}>{HOME}</div>
@@ -118,25 +120,36 @@ export default class Atlas extends Component {
 
     handleWheelEvent(event) {
         let scrollEvent = event;
+        let mousePos = {
+            x: event.clientX,
+            y: event.clientY
+        };
+        let centerPos = {
+            x: this.canvas.width / 2,
+            y: this.canvas.height / 2
+        };
+        let tempPan = this.getNewPan(mousePos, centerPos);
+        this.state.pan = tempPan;
         let scrollDir = scrollEvent.deltaY;
         if (scrollDir > 0) {
             this.zoomOut();
         } else {
             this.zoomIn();
         }
+        let finalPan = this.getNewPan(centerPos, mousePos);
+        this.state.pan = finalPan;
+        this.redraw();
     }
 
     zoomIn() {
         if (this.state.scale < MAX_SCALE) {
             this.state.scale *= SCROLL_INTENSITY;
-            this.redraw();
         }
     }
     
     zoomOut() {
         if (this.state.scale > MIN_SCALE) {
             this.state.scale /= SCROLL_INTENSITY;
-            this.redraw();
         }
     }
 
@@ -283,22 +296,18 @@ export default class Atlas extends Component {
     }
 
     getNewPan(panStart, panEnd) {
-        // get amount of panning occured
-        let panDiff = {
+        let panDiff  = {
             x: panEnd.x - panStart.x,
             y: panEnd.y - panStart.y
         };
-        // Rotate the panning
         let diffRotated = {
             x: panDiff.x * Math.cos(this.state.rotation) - panDiff.y * Math.sin(this.state.rotation),
             y: panDiff.x * Math.sin(this.state.rotation) + panDiff.y * Math.cos(this.state.rotation)
         };
-        // scale the amount of panning
         let diffScaled = {
             x: diffRotated.x / this.state.scale,
             y: diffRotated.y / this.state.scale
         };
-        // apply the scaled amount of panning to original pre pan
         return {
             x: this.state.pan.x + diffScaled.x,
             y: this.state.pan.y + diffScaled.y
