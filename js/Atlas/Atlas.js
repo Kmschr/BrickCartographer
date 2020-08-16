@@ -113,6 +113,7 @@ export default class Atlas extends Component {
 
     handleMouseDownEvent(event) {
         event.persist();
+        event = this.handleTouchEvent(event);
         this.state.dragPos = {
             x: event.clientX,
             y: event.clientY
@@ -123,6 +124,7 @@ export default class Atlas extends Component {
     handleMouseMoveEvent(event) {
         if (this.state.isDragging) {
             event.persist();
+            event = this.handleTouchEvent(event);
             let newDragPos = {
                 x: event.clientX,
                 y: event.clientY
@@ -136,6 +138,12 @@ export default class Atlas extends Component {
 
     handleMouseUpEvent() {
         this.state.isDragging = false;
+    }
+
+    handleTouchEvent(event) {
+        if (!event.clientX)
+            return event.touches[0]
+        return event;
     }
 
     handleWheelEvent(event) {
