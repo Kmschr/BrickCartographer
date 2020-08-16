@@ -190,6 +190,14 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
   background-color: #8DC377;
 }
 
+@media only screen and (max-height: 700px) {
+  .load-label,
+  .load-button,
+  .load-button:hover {
+    visibility: hidden;
+  }
+}
+
 .github-button {
   position: absolute;
   bottom: 10px;

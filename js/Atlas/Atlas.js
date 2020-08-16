@@ -70,6 +70,10 @@ export default class Atlas extends Component {
                         onMouseDown={(e) => this.handleMouseDownEvent(e)}
                         onMouseMove={(e) => this.handleMouseMoveEvent(e)}
                         onMouseUp={() => this.handleMouseUpEvent()}
+                        onTouchStart={(e) => this.handleMouseDownEvent(e)}
+                        onTouchMove={(e) => this.handleMouseMoveEvent(e)}
+                        onTouchEnd={() => this.handleMouseUpEvent()}
+                        onTouchCancel={() => this.handleMouseUpEvent()}
                         onWheel={(e) => this.handleWheelEvent(e)}
                     />
                 </div>
