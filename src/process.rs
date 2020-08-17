@@ -136,28 +136,6 @@ impl BRSProcessor {
     #[wasm_bindgen(js_name = buildVertexBuffer)]
     pub fn build_vertex_buffer(&mut self, draw_ols: bool, draw_fills: bool) -> Result<(), JsValue> {
         self.clear_vertex_buffer();
-
-        // Don't render bricks that are obviously hidden (same sized bricks stacked on top of eachother)
-        let mut unique_shapes = HashSet::<BrickShape>::new();
-        let mut copy_count = 0;
-        for i in (0..self.bricks.len()).rev() {
-            let brick_shape = BrickShape {
-                name_index: self.bricks[i].asset_name_index,
-                position: (self.bricks[i].position.0, self.bricks[i].position.1),
-                size: (self.bricks[i].size.0, self.bricks[i].size.1),
-                rotation: self.bricks[i].rotation,
-                direction: self.bricks[i].direction
-            };
-
-            if unique_shapes.contains(&brick_shape) {
-                self.bricks[i].visibility = false;
-                copy_count += 1;
-            } else {
-                unique_shapes.insert(brick_shape);
-            }
-        }
-        //log(&format!("Bricks Rendered: {}", unique_shapes.len()));
-        log(&format!("Bricks Discarded: {}", copy_count));
        
         // Calculate shapes for rendering and save Centroid
         for brick in &self.bricks {
@@ -168,58 +146,19 @@ impl BRSProcessor {
             let name = &self.brick_assets[brick.asset_name_index as usize];
 
             // Get brick color as rgba 0.0 - 1.0 f32
-            let mut brick_color = Color::black();
+            let mut brick_color;
             match brick.color {
                 brs::ColorMode::Set(color_index) => {
-                    brick_color.r = self.colors[color_index as usize].r;
-                    brick_color.g = self.colors[color_index as usize].g;
-                    brick_color.b = self.colors[color_index as usize].b;
-                    brick_color.a = self.colors[color_index as usize].a;
-        
+                    brick_color = self.colors[color_index as usize];
                 },
                 brs::ColorMode::Custom(color) => {
-                    brick_color.r = color.r() as f32 / 255.0;
-                    brick_color.g = color.g() as f32 / 255.0;
-                    brick_color.b = color.b() as f32 / 255.0;
-                    brick_color.a = color.a() as f32 / 255.0;
+                    brick_color = convert_color(&color);
                     brick_color.convert_to_srgb();
                 },
             }
-
-            // Add brick as shape for rendering
-            let shape = Shape {
-                x1: (brick.position.0 - brick.size.0 as i32) as f32,
-                y1: (brick.position.1 - brick.size.1 as i32) as f32,
-                x2: (brick.position.0 + brick.size.0 as i32) as f32,
-                y2: (brick.position.1 + brick.size.1 as i32) as f32
-            };
-
-            //log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
-
             if draw_fills {
                 // Calculate Shape vertices
-                let verts = match name.as_str() {
-                    "B_2x2_Corner" =>
-                        corner(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                        side_wedge(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultWedge" =>
-                        wedge(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRamp" =>
-                        ramp(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRampCorner" =>
-                        ramp_corner(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRampCornerInverted" =>
-                        ramp_corner_inverted(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRampCrest" =>
-                        ramp_crest(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRampCrestEnd" =>
-                        ramp_crest_end(brick.direction, brick.rotation, &shape),
-                    "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
-                        round(brick.direction, &shape),
-                    _ => 
-                        rec(&shape),
-                };
+                let verts = calculate_brick_vertices(&name, &brick);
 
                 // Add shape to save
                 let fill = RenderObject {
@@ -231,28 +170,7 @@ impl BRSProcessor {
             
             if draw_ols {
                 // Add brick outline for rendering
-                let ol_verts = match name.as_str() {
-                    "B_2x2_Corner" =>
-                        corner_ol(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                        side_wedge_ol(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultWedge" =>
-                        wedge_ol(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRamp" =>
-                        ramp_ol(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRampCorner" =>
-                        ramp_corner_ol(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRampCornerInverted" =>
-                        ramp_corner_inverted_ol(brick.direction, brick.rotation, &shape),
-                    "PB_DefaultRampCrest" =>
-                        ramp_crest_ol(brick.direction, brick.rotation, &shape),  
-                    "PB_DefaultRampCrestEnd" =>
-                        ramp_crest_end_ol(brick.direction, brick.rotation, &shape),
-                    "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
-                        round_ol(brick.direction, &shape),
-                    _ =>
-                        rec_ol(&shape)
-                };
+                let ol_verts = calculate_brick_outline_vertices(&name, &brick);
 
                 let outline = RenderObject {
                     vertices: ol_verts,
@@ -285,41 +203,9 @@ impl BRSProcessor {
             if !brick.visibility {
                 continue;
             }
-
             let name = &self.brick_assets[brick.asset_name_index as usize];
 
-            // Add brick as shape for rendering
-            let shape = Shape {
-                x1: (brick.position.0 - brick.size.0 as i32) as f32,
-                y1: (brick.position.1 - brick.size.1 as i32) as f32,
-                x2: (brick.position.0 + brick.size.0 as i32) as f32,
-                y2: (brick.position.1 + brick.size.1 as i32) as f32
-            };
-
-            //log(&format!("{:?}, {:?}", brick.direction, brick.rotation));
-            // Calculate Shape vertices
-            let verts = match name.as_str() {
-                "B_2x2_Corner" =>
-                    corner(brick.direction, brick.rotation, &shape),
-                "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-                    side_wedge(brick.direction, brick.rotation, &shape),
-                "PB_DefaultWedge" =>
-                    wedge(brick.direction, brick.rotation, &shape),
-                "PB_DefaultRamp" =>
-                    ramp(brick.direction, brick.rotation, &shape),
-                "PB_DefaultRampCorner" =>
-                    ramp_corner(brick.direction, brick.rotation, &shape),
-                "PB_DefaultRampCornerInverted" =>
-                    ramp_corner_inverted(brick.direction, brick.rotation, &shape),
-                "PB_DefaultRampCrest" =>
-                    ramp_crest(brick.direction, brick.rotation, &shape),
-                "PB_DefaultRampCrestEnd" =>
-                    ramp_crest_end(brick.direction, brick.rotation, &shape),
-                "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
-                    round(brick.direction, &shape),
-                _ => 
-                    rec(&shape),
-            };
+            let verts = calculate_brick_vertices(&name, &brick);
 
             let height = brick.position.2;
             let relative_height = (height - min_height) as f32 / (max_height - min_height) as f32;
@@ -330,9 +216,9 @@ impl BRSProcessor {
             for i in 0..vertex_count {
                 vertex_array.push(verts[i*2]);
                 vertex_array.push(verts[i*2 + 1]);
-                vertex_array.push(relative_height);
-                vertex_array.push(relative_height);
-                vertex_array.push(relative_height);
+                for _ in 0..3 {
+                    vertex_array.push(relative_height);
+                }
             }
             self.vertex_buffer.append(&mut vertex_array);
         }

@@ -9,6 +9,7 @@ const ROTATE_ANGLE = Math.PI / 8;
 const DEFAULT_SCALE = 0.1;
 const MAX_SCALE = 20;
 const MIN_SCALE = 0.01;
+const DEFAULT_PAN = { x: 0, y: 0 };
 const SCROLL_INTENSITY = 1.2;
 
 const wasm = import('../../pkg');
@@ -19,7 +20,6 @@ export default class Atlas extends Component {
         super(props);
         this.loadFileWASM = this.loadFileWASM.bind(this);
         this.redraw = this.redraw.bind(this);
-        this.resetPan = this.resetPan.bind(this);
         this.processSave = this.processSave.bind(this);
         this.toggleFullscreen = this.toggleFullscreen.bind(this);
         this.takeScreenshot = this.takeScreenshot.bind(this);
@@ -36,14 +36,8 @@ export default class Atlas extends Component {
             showHeightmap: false,
             rotation: DEFAULT_ROTATION,
             scale: DEFAULT_SCALE,
-            pan: {
-                x: 0,
-                y: 0
-            },
-            dragPos: {
-                x: 0,
-                y: 0
-            }
+            pan: DEFAULT_PAN,
+            dragPos: DEFAULT_PAN
         };
     }
 
@@ -83,7 +77,7 @@ export default class Atlas extends Component {
                 <div className="map-button zoom-out-button" title="Zoom Out" onClick={() => {this.zoomOut(); this.redraw()}}>-</div>
                 <div className="map-button rotate-cw-button svg-button" title="Rotate CW" onClick={() => this.rotateCW()}>{ROTATE_CW}</div>
                 <div className="map-button rotate-ccw-button svg-button" title="Rotate CCW" onClick={() => this.rotateCCW()}>{ROTATE_CCW}</div>
-                <div className="map-button home-button svg-button" title="Home Position" onClick={() => this.resetPan()}>{HOME}</div>
+                <div className="map-button home-button svg-button" title="Home Position" onClick={() => this.resetView()}>{HOME}</div>
                 <div className="map-button fullscreen-button svg-button" title="Toggle Fullscreen" onClick={this.toggleFullscreen}>{FULLSCREEN}</div>
                 <div className="button-label fill-label">FILL</div>
                 <div className={borderButtonClassName} title="Toggle Brick Borders" onClick={this.toggleBrickOutlines}>{BORDERS}</div>
@@ -246,6 +240,11 @@ export default class Atlas extends Component {
 
     takeHDScreenshot() {
         if (this.state.save) {
+            let rotationBeforeScreenshot = this.state.rotation;
+            let panBeforeScreenshot = this.state.pan;
+            let scaleBeforeScreenshot = this.state.scale;
+            this.state.rotation = DEFAULT_ROTATION;
+            this.state.scale = DEFAULT_SCALE;
             this.imageCombiner.setSize(this.canvas.width, this.canvas.height);
             let bounds = this.state.save.bounds();
             let canvasWidth = this.canvas.width / this.state.scale;
@@ -256,6 +255,10 @@ export default class Atlas extends Component {
             let imageHeight = (bounds[3] - bounds[1]);
             let numCols = Math.ceil(imageWidth / canvasWidth);
             let numRows = Math.ceil(imageHeight / canvasHeight);
+            if (numCols == 0)
+                numCols = 1;
+            if (numRows == 0)
+                numRows = 1;
             let numImages = numRows * numCols;
             let imageIndex = 0;
             for (let col = 0; col < numCols; col++) {
@@ -270,6 +273,10 @@ export default class Atlas extends Component {
                             this.imageCombiner.pushImage(u8buff, row*numCols + col);
                             imageIndex++;
                             if (imageIndex === numImages) {
+                                this.state.rotation = rotationBeforeScreenshot;
+                                this.state.scale = scaleBeforeScreenshot;
+                                this.state.pan = panBeforeScreenshot;
+                                this.redraw();
                                 try {
                                     let buffer = this.imageCombiner.combineImages(numRows, numCols);
                                     let merged = new Blob([buffer.buffer]);
@@ -356,11 +363,10 @@ export default class Atlas extends Component {
         };
     }
 
-    resetPan() {
-        this.state.pan = {
-            x: 0,
-            y: 0
-        };
+    resetView() {
+        this.state.scale = DEFAULT_SCALE;
+        this.state.pan = DEFAULT_PAN;
+        this.state.rotation = DEFAULT_ROTATION;
         this.redraw();
     }
 
@@ -398,7 +404,7 @@ export default class Atlas extends Component {
             });
     }
 
-    processSave(resetPan) {
+    processSave(newSave) {
         try {
             if (this.state.showHeightmap) {
                 this.state.save.buildHeightmapVertexBuffer();
@@ -408,11 +414,10 @@ export default class Atlas extends Component {
         } catch (err) {
             console.error(err);
         }
-        if (resetPan)
-            this.resetPan();
+        if (newSave)
+            this.resetView();
         this.canvas.style.cursor = null;
         this.redraw();
-
     }
 
 }
