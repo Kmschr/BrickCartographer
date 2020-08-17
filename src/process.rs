@@ -63,7 +63,10 @@ impl BRSProcessor {
         bricks.sort_unstable_by_key(|b| b.position.2 + b.size.2 as i32);
     
          // Get color list as rgba 0.0-1.0 f32
-        let colors: Vec<Color> = reader.colors().iter().map(convert_color).collect();
+        let mut colors: Vec<Color> = reader.colors().iter().map(convert_color).collect();
+        for color in &mut colors {
+            color.convert_to_srgb();
+        }
     
         let description: String = reader.description().to_string();
         let brick_count: i32 = reader.brick_count();
@@ -179,6 +182,7 @@ impl BRSProcessor {
                     brick_color.g = color.g() as f32 / 255.0;
                     brick_color.b = color.b() as f32 / 255.0;
                     brick_color.a = color.a() as f32 / 255.0;
+                    brick_color.convert_to_srgb();
                 },
             }
 
@@ -259,8 +263,7 @@ impl BRSProcessor {
 
         }
 
-        self.gl_buffer_data();
-
+        self.gl_buffer_data(&self.vertex_buffer);
         Ok(())
     }
 
@@ -333,24 +336,42 @@ impl BRSProcessor {
             }
             self.vertex_buffer.append(&mut vertex_array);
         }
-
-        self.gl_buffer_data();
         
+        self.gl_buffer_data(&self.vertex_buffer);
         Ok(())
     }
 
-    pub fn clear_vertex_buffer(&mut self) {
-        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * VERTEX_SIZE as usize);
+    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {
+        let pan = Point { x: pan_x, y: pan_y};
+        let size = Point { x: size_x as f32, y: size_y as f32};
+
+        self.gl.viewport(0, 0, size.x as i32, size.y as i32);
+
+        self.gl.clear_color(0.0, 0.0, 0.0, 0.0);
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+
+        let mut matrix = m3::projection(size.x, size.y);
+        matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
+        matrix = m3::scale(matrix, scale, scale);
+        matrix = m3::rotate(matrix, rotation);
+        matrix = m3::translate(matrix, pan.x - self.centroid.0 as f32, pan.y - self.centroid.1 as f32);
+
+        self.gl.uniform_matrix3fv_with_f32_array(Some(self.matrix_uniform_location.as_ref()), false, &matrix);
+
+        let vertex_count = (self.vertex_buffer.len() / 5) as i32;
+
+        if vertex_count > 0 {
+            self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
+        }
+
+        Ok(())
     }
 
-    pub fn gl_buffer_data(&mut self) {
-        unsafe {
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &js_sys::Float32Array::view(&self.vertex_buffer),
-                WebGlRenderingContext::STATIC_DRAW
-            );
-        }
+}
+
+impl BRSProcessor {
+    pub fn clear_vertex_buffer(&mut self) {
+        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * VERTEX_SIZE as usize);
     }
 
     pub fn discard_hidden_bricks(&mut self) {
@@ -377,31 +398,13 @@ impl BRSProcessor {
         log(&format!("Bricks Discarded: {}", copy_count));
     }
 
-    pub fn render(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {
-        let pan = Point { x: pan_x, y: pan_y};
-        let size = Point { x: size_x as f32, y: size_y as f32};
-
-        self.gl.viewport(0, 0, size.x as i32, size.y as i32);
-
-        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
-        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
-
-        let mut matrix = m3::projection(size.x, size.y);
-        matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
-        matrix = m3::scale(matrix, scale, scale);
-        matrix = m3::rotate(matrix, rotation);
-        matrix = m3::translate(matrix, pan.x - self.centroid.0 as f32, pan.y - self.centroid.1 as f32);
-
-        self.gl.uniform_matrix3fv_with_f32_array(Some(self.matrix_uniform_location.as_ref()), false, &matrix);
-
-        let vertex_count = (self.vertex_buffer.len() / 5) as i32;
-
-        if vertex_count > 0 {
-            self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
+    pub fn gl_buffer_data(&self, vertex_buffer: &[f32]) {
+        unsafe {
+            self.gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &js_sys::Float32Array::view(vertex_buffer),
+                WebGlRenderingContext::STATIC_DRAW
+            );
         }
-
-        
-
-        Ok(())
     }
 }

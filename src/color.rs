@@ -16,6 +16,12 @@ impl Color {
             a: 1.0,
         }
     }
+
+    pub fn convert_to_srgb(&mut self) {
+        self.r = val_as_srgb(self.r);
+        self.g = val_as_srgb(self.g);
+        self.b = val_as_srgb(self.b);
+    }
 }
 
 pub fn convert_color(color: &brs::Color) -> Color {
@@ -25,4 +31,12 @@ pub fn convert_color(color: &brs::Color) -> Color {
         b: color.b() as f32 / 255.0,
         a: color.a() as f32 / 255.0,
     }
+}
+
+pub fn val_as_srgb(val: f32) -> f32 {
+    if val > 0.003_130_8 {
+        1.055 * val.powf(1.0 / 2.4) - 0.055
+    } else {
+        val * 12.92
+    }    
 }

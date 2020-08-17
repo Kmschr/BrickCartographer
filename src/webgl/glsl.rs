@@ -15,9 +15,7 @@ pub const VERTEX_SHADER_CODE: &str = r#"
     varying vec4 v_color;
 
     void main() {
-        float gamma = 2.2;
-        vec3 srgb = pow(a_color, vec3(1.0/gamma));
-        v_color = vec4(srgb, 1);
+        v_color = vec4(a_color, 1);
         gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
     }
 "#;
