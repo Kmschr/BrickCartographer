@@ -24,12 +24,12 @@ impl Color {
     }
 }
 
-pub fn convert_color(color: &brs::Color) -> Color {
+pub fn convert_color(color: &brickadia::save::Color) -> Color {
     Color {
-        r: color.r() as f32 / 255.0,
-        g: color.g() as f32 / 255.0,
-        b: color.b() as f32 / 255.0,
-        a: color.a() as f32 / 255.0,
+        r: color.r as f32 / 255.0,
+        g: color.g as f32 / 255.0,
+        b: color.b as f32 / 255.0,
+        a: 1.0,
     }
 }
 

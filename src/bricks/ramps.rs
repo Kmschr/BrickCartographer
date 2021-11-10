@@ -1,28 +1,28 @@
-use brs::{Rotation, Direction};
+use brickadia::save::{Brick, Rotation, Direction};
 use bricks::primitives::*;
 
-pub fn ramp(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::XPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_bl_bot(shape),
                 Rotation::Deg270 => ramp_tl_top(shape),
                 _ => rec(shape)
             },
         Direction::XNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_tr_top(shape),
                 Rotation::Deg270 => ramp_br_bot(shape),
                 _ => rec(shape)
             },
         Direction::YPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_tl_left(shape),
                 Rotation::Deg270 => ramp_tr_right(shape),
                 _ => rec(shape)
             },
         Direction::YNegative => 
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_br_right(shape),
                 Rotation::Deg270 => ramp_bl_left(shape),
                 _ => rec(shape)
@@ -31,25 +31,25 @@ pub fn ramp(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32>
     }
 }
 
-pub fn ramp_corner(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_corner(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::XPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_bl_bot(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_tl_top(shape)
             },
         Direction::XNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_tr_top(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_br_bot(shape)
             },
         Direction::YPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_tl_left(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_tr_right(shape)
             },
         Direction::YNegative => 
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_br_right(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_bl_left(shape)
             },
@@ -57,25 +57,25 @@ pub fn ramp_corner(direction: Direction, rotation: Rotation, shape: &Shape) -> V
     }
 }
 
-pub fn ramp_corner_inverted(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_corner_inverted(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::XPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_br_bot(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_tr_top(shape)
             },
         Direction::XNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_tl_top(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_bl_bot(shape)
             },
         Direction::YPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_bl_left(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_br_right(shape)
             },
         Direction::YNegative => 
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_tr_right(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_tl_left(shape)
             },
@@ -139,28 +139,28 @@ fn ramp_bl_bot(shape: &Shape) -> Vec<f32> {
     [rec, tri].concat()
 }
 
-pub fn ramp_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_ol(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::XPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_ol_bl_bot(shape),
                 Rotation::Deg270 => ramp_ol_tl_top(shape),
                 _ => rec_ol(shape)
             },
         Direction::XNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_ol_tr_top(shape),
                 Rotation::Deg270 => ramp_ol_br_bot(shape),
                 _ => rec_ol(shape)
             },
         Direction::YPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_ol_tl_left(shape),
                 Rotation::Deg270 => ramp_ol_tr_right(shape),
                 _ => rec_ol(shape)
             },
         Direction::YNegative => 
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 => ramp_ol_br_right(shape),
                 Rotation::Deg270 => ramp_ol_bl_left(shape),
                 _ => rec_ol(shape)
@@ -169,25 +169,25 @@ pub fn ramp_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f
     }
 }
 
-pub fn ramp_corner_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_corner_ol(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::XPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_bl_bot(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tl_top(shape)
             },
         Direction::XNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tr_top(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_br_bot(shape)
             },
         Direction::YPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tl_left(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tr_right(shape)
             },
         Direction::YNegative => 
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_br_right(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_bl_left(shape)
             },
@@ -195,25 +195,25 @@ pub fn ramp_corner_ol(direction: Direction, rotation: Rotation, shape: &Shape) -
     }
 }
 
-pub fn ramp_corner_inverted_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_corner_inverted_ol(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::XPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_br_bot(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tr_top(shape)
             },
         Direction::XNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tl_top(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_bl_bot(shape)
             },
         Direction::YPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_bl_left(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_br_right(shape)
             },
         Direction::YNegative => 
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 | Rotation::Deg90 => ramp_ol_tr_right(shape),
                 Rotation::Deg180 | Rotation::Deg270 => ramp_ol_tl_left(shape)
             },

@@ -11,7 +11,8 @@ use std::collections::HashSet;
 use web_sys::{WebGlRenderingContext, WebGlUniformLocation};
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
-use brs::{Brick, HasHeader1, HasHeader2, Rotation, Direction};
+use brickadia::read::SaveReader;
+use brickadia::save::{Brick, Rotation, Direction, BrickColor, Size};
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct BrickShape {
@@ -39,37 +40,29 @@ pub struct BRSProcessor {
 #[wasm_bindgen]
 impl BRSProcessor {
     pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
-        let reader = match brs::Reader::new(body.as_slice()) {
+        let mut reader = match SaveReader::new(body.as_slice()) {
             Ok(v) => v,
-            Err(_e) => return Err(JsValue::from("brs error reading file")),
+            Err(_e) => return Err(JsValue::from("brickadia-rs error creating save reader"))
         };
-        let reader = match reader.read_header1() {
+        let save = match reader.read_all() {
             Ok(v) => v,
-            Err(_e) => return Err(JsValue::from("brs error reading header1")),
-        };
-        let reader = match reader.read_header2() {
-            Ok(v) => v,
-            Err(_e) => return Err(JsValue::from("brs error reading header2")),
-        };
-        let (reader, brs_bricks) = match reader.iter_bricks_and_reader() {
-            Ok(v) => v,
-            Err(_e) => return Err(JsValue::from("brs error reading bricks")),
+            Err(_e) => return Err(JsValue::from("brickadia-rs error reading file"))
         };
         
-        let brick_assets: Vec<String> = reader.brick_assets().to_vec();
-        let mut bricks: Vec<Brick> = brs_bricks
+        let brick_assets = save.header2.brick_assets;
+        let mut bricks: Vec<Brick> = save.bricks.into_iter()
             .filter_map(|b| util::filter_and_transform_brick(b, &brick_assets))
             .collect();
-        bricks.sort_unstable_by_key(|b| b.position.2 + b.size.2 as i32);
+        bricks.sort_unstable_by_key(|b| util::top_surface(b));
     
          // Get color list as rgba 0.0-1.0 f32
-        let mut colors: Vec<Color> = reader.colors().iter().map(convert_color).collect();
+        let mut colors: Vec<Color> = save.header2.colors.iter().map(convert_color).collect();
         for color in &mut colors {
             color.convert_to_srgb();
         }
     
-        let description: String = reader.description().to_string();
-        let brick_count: i32 = reader.brick_count();
+        let description: String = save.header1.description;
+        let brick_count: i32 = save.header1.brick_count as i32;
     
         let centroid = util::calculate_centroid(&bricks);
         let bounds = util::calculate_bounds(&bricks, centroid);
@@ -147,11 +140,11 @@ impl BRSProcessor {
 
             // Get brick color as rgba 0.0 - 1.0 f32
             let mut brick_color;
-            match brick.color {
-                brs::ColorMode::Set(color_index) => {
-                    brick_color = self.colors[color_index as usize];
+            match &brick.color {
+                BrickColor::Index(color_index) => {
+                    brick_color = self.colors[*color_index as usize];
                 },
-                brs::ColorMode::Custom(color) => {
+                BrickColor::Unique(color) => {
                     brick_color = convert_color(&color);
                     brick_color.convert_to_srgb();
                 },
@@ -265,12 +258,16 @@ impl BRSProcessor {
         let mut unique_shapes = HashSet::<BrickShape>::new();
         let mut copy_count = 0;
         for i in (0..self.bricks.len()).rev() {
+            let size = match self.bricks[i].size {
+                Size::Procedural(x, y, z) => (x, y, z),
+                Size::Empty => (0, 0, 0),
+            };
             let brick_shape = BrickShape {
                 name_index: self.bricks[i].asset_name_index,
                 position: (self.bricks[i].position.0, self.bricks[i].position.1),
-                size: (self.bricks[i].size.0, self.bricks[i].size.1),
-                rotation: self.bricks[i].rotation,
-                direction: self.bricks[i].direction
+                size: (size.0, size.1),
+                rotation: self.bricks[i].rotation.clone(),
+                direction: self.bricks[i].direction.clone()
             };
 
             if unique_shapes.contains(&brick_shape) {

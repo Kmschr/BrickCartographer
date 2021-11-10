@@ -1,28 +1,28 @@
-use brs::{Rotation, Direction};
+use brickadia::save::{Brick, Rotation, Direction};
 use bricks::primitives::*;
 
-pub fn ramp_crest(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_crest(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::YPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_down(shape),
                 _ => rec(shape)
             }
         },
         Direction::YNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_up(shape),
                 _ => rec(shape)
             }
         },
         Direction::XPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_right(shape),
                 _ => rec(shape)
             }
         },
         Direction::XNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_left(shape),
                 _ => rec(shape)
             }
@@ -31,31 +31,31 @@ pub fn ramp_crest(direction: Direction, rotation: Rotation, shape: &Shape) -> Ve
     }
 }
 
-pub fn ramp_crest_end(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_crest_end(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::YPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri(shape, Tri::TopRight),
                 Rotation::Deg180 => tri(shape, Tri::TopLeft),
                 Rotation::Deg90 | Rotation::Deg270 => crest_down(shape),
             }
         },
         Direction::YNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri(shape, Tri::BotLeft),
                 Rotation::Deg180 => tri(shape, Tri::BotRight),
                 Rotation::Deg90 | Rotation::Deg270 => crest_up(shape),
             }
         },
         Direction::XPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri(shape, Tri::TopLeft),
                 Rotation::Deg180 => tri(shape, Tri::BotLeft),
                 Rotation::Deg90 | Rotation::Deg270 => crest_right(shape),
             }
         },
         Direction::XNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri(shape, Tri::BotRight),
                 Rotation::Deg180 => tri(shape, Tri::TopRight),
                 Rotation::Deg90 | Rotation::Deg270 => crest_left(shape),
@@ -89,28 +89,28 @@ fn crest_left(shape: &Shape) -> Vec<f32> {
      tri(&Shape {x1: shape.x1, y1: shape.y1 + sy, x2: shape.x2, y2: shape.y2}, Tri::TopRight)].concat()
 }
 
-pub fn ramp_crest_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_crest_ol(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::YPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_down(shape),
                 _ => rec_ol(shape)
             }
         },
         Direction::YNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_up(shape),
                 _ => rec_ol(shape)
             }
         },
         Direction::XPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_right(shape),
                 _ => rec_ol(shape)
             }
         },
         Direction::XNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_left(shape),
                 _ => rec_ol(shape)
             }
@@ -119,31 +119,31 @@ pub fn ramp_crest_ol(direction: Direction, rotation: Rotation, shape: &Shape) ->
     }
 }
 
-pub fn ramp_crest_end_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn ramp_crest_end_ol(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::YPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri_ol(shape, Tri::TopRight),
                 Rotation::Deg180 => tri_ol(shape, Tri::TopLeft),
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_down(shape),
             }
         },
         Direction::YNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri_ol(shape, Tri::BotLeft),
                 Rotation::Deg180 => tri_ol(shape, Tri::BotRight),
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_up(shape),
             }
         },
         Direction::XPositive => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri_ol(shape, Tri::TopLeft),
                 Rotation::Deg180 => tri_ol(shape, Tri::BotLeft),
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_right(shape),
             }
         },
         Direction::XNegative => {
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => tri_ol(shape, Tri::BotRight),
                 Rotation::Deg180 => tri_ol(shape, Tri::TopRight),
                 Rotation::Deg90 | Rotation::Deg270 => crest_ol_left(shape),

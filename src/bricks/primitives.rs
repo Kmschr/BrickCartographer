@@ -1,8 +1,8 @@
-pub const STUD_WIDTH: f32 = 10.0;
-pub const STUD_HEIGHT: f32 = 12.0;
-pub const PLATE_HEIGHT: f32 = 4.0;
+use brickadia::save::{Brick, Size};
 
-pub const OUTLINE_THICKNESS: f32 = 1.3;
+pub const STUD_WIDTH: f32 = 10.0;
+
+pub const OUTLINE_THICKNESS: f32 = 0.8;
 
 pub const DEG360: f32 = std::f32::consts::PI * 2.0;
 pub const CIRCLE_RES: f32 = 16.0;
@@ -34,6 +34,22 @@ impl Shape {
 
     pub fn size(&self) -> (f32, f32) {
         ((self.x2 - self.x1)/2.0, (self.y2 - self.y1)/2.0)
+    }
+}
+
+impl From<&Brick> for Shape {
+    fn from(brick: &Brick) -> Self {
+        let size = match brick.size {
+            Size::Procedural(x, y, z) => (x, y, z),
+            Size::Empty => (0, 0, 0),
+        };
+
+        Shape {
+            x1: (brick.position.0 - size.0 as i32) as f32,
+            y1: (brick.position.1 - size.1 as i32) as f32,
+            x2: (brick.position.0 + size.0 as i32) as f32,
+            y2: (brick.position.1 + size.1 as i32) as f32
+        }
     }
 }
 

@@ -12,65 +12,55 @@ pub use self::crests::*;
 pub use self::ramps::*;
 pub use self::misc::*;
 
-pub fn calculate_brick_vertices(name: &String, brick: &brs::Brick) -> Vec<f32> {
-    let shape = Shape {
-        x1: (brick.position.0 - brick.size.0 as i32) as f32,
-        y1: (brick.position.1 - brick.size.1 as i32) as f32,
-        x2: (brick.position.0 + brick.size.0 as i32) as f32,
-        y2: (brick.position.1 + brick.size.1 as i32) as f32
-    };
+use brickadia::save::Brick;
 
+pub fn calculate_brick_vertices(name: &String, brick: &Brick) -> Vec<f32> {
+    let shape = Shape::from(brick);
     match name.as_str() {
         "B_2x2_Corner" =>
-            corner(brick.direction, brick.rotation, &shape),
+            corner(brick, &shape),
         "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-            side_wedge(brick.direction, brick.rotation, &shape),
+            side_wedge(brick, &shape),
         "PB_DefaultWedge" =>
-            wedge(brick.direction, brick.rotation, &shape),
+            wedge(brick, &shape),
         "PB_DefaultRamp" =>
-            ramp(brick.direction, brick.rotation, &shape),
+            ramp(brick, &shape),
         "PB_DefaultRampCorner" =>
-            ramp_corner(brick.direction, brick.rotation, &shape),
+            ramp_corner(brick, &shape),
         "PB_DefaultRampCornerInverted" =>
-            ramp_corner_inverted(brick.direction, brick.rotation, &shape),
+            ramp_corner_inverted(brick, &shape),
         "PB_DefaultRampCrest" =>
-            ramp_crest(brick.direction, brick.rotation, &shape),
+            ramp_crest(brick, &shape),
         "PB_DefaultRampCrestEnd" =>
-            ramp_crest_end(brick.direction, brick.rotation, &shape),
-        "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
-            round(brick.direction, &shape),
+            ramp_crest_end(brick, &shape),
+        "PB_DefaultPole" | "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
+            round(brick, &shape),
         _ => 
             rec(&shape),
     }
 }
 
-pub fn calculate_brick_outline_vertices(name: &String, brick: &brs::Brick) -> Vec<f32> {
-    let shape = Shape {
-        x1: (brick.position.0 - brick.size.0 as i32) as f32,
-        y1: (brick.position.1 - brick.size.1 as i32) as f32,
-        x2: (brick.position.0 + brick.size.0 as i32) as f32,
-        y2: (brick.position.1 + brick.size.1 as i32) as f32
-    };
-
+pub fn calculate_brick_outline_vertices(name: &String, brick: &Brick) -> Vec<f32> {
+    let shape = Shape::from(brick);
     match name.as_str() {
         "B_2x2_Corner" =>
-            corner_ol(brick.direction, brick.rotation, &shape),
+            corner_ol(brick, &shape),
         "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
-            side_wedge_ol(brick.direction, brick.rotation, &shape),
+            side_wedge_ol(brick, &shape),
         "PB_DefaultWedge" =>
-            wedge_ol(brick.direction, brick.rotation, &shape),
+            wedge_ol(brick, &shape),
         "PB_DefaultRamp" =>
-            ramp_ol(brick.direction, brick.rotation, &shape),
+            ramp_ol(brick, &shape),
         "PB_DefaultRampCorner" =>
-            ramp_corner_ol(brick.direction, brick.rotation, &shape),
+            ramp_corner_ol(brick, &shape),
         "PB_DefaultRampCornerInverted" =>
-            ramp_corner_inverted_ol(brick.direction, brick.rotation, &shape),
+            ramp_corner_inverted_ol(brick, &shape),
         "PB_DefaultRampCrest" =>
-            ramp_crest_ol(brick.direction, brick.rotation, &shape),  
+            ramp_crest_ol(brick, &shape),  
         "PB_DefaultRampCrestEnd" =>
-            ramp_crest_end_ol(brick.direction, brick.rotation, &shape),
-        "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
-            round_ol(brick.direction, &shape),
+            ramp_crest_end_ol(brick, &shape),
+        "PB_DefaultPole" | "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round" =>
+            round_ol(brick, &shape),
         _ =>
             rec_ol(&shape)
     }

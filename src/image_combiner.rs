@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 use image::{ImageFormat, DynamicImage, load_from_memory_with_format, ImageBuffer, RgbaImage};
-use image::png::PNGEncoder;
+use image::png::PngEncoder;
 
 #[wasm_bindgen]
 pub struct ImageCombiner {
@@ -74,7 +74,7 @@ impl ImageCombiner {
 
         let buffer = img.into_raw();
         let mut merged: Vec<u8> = Vec::new();
-        let encoder = PNGEncoder::new(&mut merged);
+        let encoder = PngEncoder::new(&mut merged);
         match encoder.encode(&buffer, image_width, image_height, image::ColorType::Rgba8) {
             Ok(_v) => (),
             Err(_e) => return Err(JsValue::from_str("Error encoding to png"))

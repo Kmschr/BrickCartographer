@@ -1,4 +1,4 @@
-extern crate brs;
+extern crate brickadia;
 extern crate js_sys;
 extern crate web_sys;
 extern crate image;

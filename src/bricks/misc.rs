@@ -1,17 +1,17 @@
-use brs::{Rotation, Direction};
+use brickadia::save::{Brick, Direction, Rotation};
 use bricks::primitives::*;
 
-pub fn corner(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn corner(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::ZPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => corner_tl(shape),
                 Rotation::Deg90 => corner_tr(shape),
                 Rotation::Deg180 => corner_br(shape),
                 Rotation::Deg270 => corner_bl(shape)
             }
         Direction::ZNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => corner_tr(shape),
                 Rotation::Deg90 => corner_tl(shape),
                 Rotation::Deg180 => corner_bl(shape),
@@ -45,17 +45,17 @@ fn corner_bl(shape: &Shape) -> Vec<f32> {
     [long, short].concat()
 }
 
-pub fn corner_ol(direction: Direction, rotation: Rotation, shape: &Shape) -> Vec<f32> {
-    match direction {
+pub fn corner_ol(brick: &Brick, shape: &Shape) -> Vec<f32> {
+    match brick.direction {
         Direction::ZPositive =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => corner_ol_tl(shape),
                 Rotation::Deg90 => corner_ol_tr(shape),
                 Rotation::Deg180 => corner_ol_br(shape),
                 Rotation::Deg270 => corner_ol_bl(shape),
             }
         Direction::ZNegative =>
-            match rotation {
+            match brick.rotation {
                 Rotation::Deg0 => corner_ol_tr(shape),
                 Rotation::Deg90 => corner_ol_tl(shape),
                 Rotation::Deg180 => corner_ol_bl(shape),
