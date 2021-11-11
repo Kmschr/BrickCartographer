@@ -19,7 +19,7 @@ pub fn calculate_brick_vertices(name: &String, brick: &Brick) -> Vec<f32> {
     match name.as_str() {
         "B_2x2_Corner" =>
             corner(brick, &shape),
-        "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
+        "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" | "PB_DefaultMicroWedge" =>
             side_wedge(brick, &shape),
         "PB_DefaultWedge" =>
             wedge(brick, &shape),
@@ -45,7 +45,7 @@ pub fn calculate_brick_outline_vertices(name: &String, brick: &Brick) -> Vec<f32
     match name.as_str() {
         "B_2x2_Corner" =>
             corner_ol(brick, &shape),
-        "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" =>
+        "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" | "PB_DefaultMicroWedge" =>
             side_wedge_ol(brick, &shape),
         "PB_DefaultWedge" =>
             wedge_ol(brick, &shape),
