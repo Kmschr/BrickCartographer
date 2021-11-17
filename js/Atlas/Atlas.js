@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import {saveBlob} from "./util";
-import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, MOUNTAIN, PHOTO, MAP, LOAD, GITHUB} from "./icons";
+import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, MOUNTAIN, PHOTO, MAP, LEGO, LOAD, GITHUB} from "./icons";
 
 import ACM_City from "../../default_saves/ACM_City.brs";
 
@@ -39,6 +39,8 @@ export default class Atlas extends Component {
             pan: DEFAULT_PAN,
             dragPos: DEFAULT_PAN
         };
+
+        wasm.then(rust => rust.getVersion().then(v => console.log(v)))
     }
 
     render() {
@@ -85,7 +87,8 @@ export default class Atlas extends Component {
                 <div className={heightmapButtonClassName} title="Toggle Heightmap" onClick={this.toggleHeightmap}>{MOUNTAIN}</div>
                 <div className="button-label save-label">SAVE</div>
                 <div className="map-button photo-button svg-button" title="Save Current View" onClick={this.takeScreenshot}>{PHOTO}</div>
-                <div className="map-button hd-photo-button svg-button" title="Save Entire Map (WIP)" onClick={this.takeHDScreenshot}>{MAP}</div>
+                <div className="map-button hd-photo-button svg-button" title="Save Entire Map" onClick={() => this.takeHDScreenshot(1)}>{MAP}</div>
+                <div className="map-button zoom-photo-button svg-button" title="Save Entire Map x10 Zoom" onClick={() => this.takeHDScreenshot(10)}>{LEGO}</div>
                 <div className="button-label load-label">LOAD</div>
                 <div className="map-button load-button svg-button" title="Load Build" onClick={this.clickFileInput}>{LOAD}</div>
                 <a className="github-button" href="https://github.com/Kmschr/BrickCartographer" target="_blank" rel="noopener noreferrer">{GITHUB}</a>
@@ -238,13 +241,13 @@ export default class Atlas extends Component {
         }
     }
 
-    takeHDScreenshot() {
+    takeHDScreenshot(zoom) {
         if (this.state.save) {
             let rotationBeforeScreenshot = this.state.rotation;
             let panBeforeScreenshot = this.state.pan;
             let scaleBeforeScreenshot = this.state.scale;
             this.state.rotation = DEFAULT_ROTATION;
-            this.state.scale = DEFAULT_SCALE;
+            this.state.scale = DEFAULT_SCALE * zoom;
             this.imageCombiner.setSize(this.canvas.width, this.canvas.height);
             let bounds = this.state.save.bounds();
             let canvasWidth = this.canvas.width / this.state.scale;
@@ -385,10 +388,12 @@ export default class Atlas extends Component {
     }
 
     loadFileWASM(file) {
+        const filename = file.name.replace(/\.[^/.]+$/, "")
         file.arrayBuffer()
             .then(buff => new Uint8Array(buff))
             .then(buff =>
                 wasm.then(rust => rust.loadFile(buff)).catch((error) => {
+                    console.log(error)
                     this.setState({
                         fileError: true,
                         fileErrorMsg: error
@@ -398,6 +403,7 @@ export default class Atlas extends Component {
             .then(save => {
                 this.setState({
                     save: save,
+                    map: filename
                 }, () => {
                     this.processSave(true);
                 });

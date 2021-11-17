@@ -1,6 +1,6 @@
 [package]
 name = "brick_cartographer"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Kmschr <Kmschr@gmail.com>"]
 description = "Website/WASM to map brickadia saves"
 repository = "https://github.com/Kmschr/BrickCartographer"

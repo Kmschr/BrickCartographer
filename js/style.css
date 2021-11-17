@@ -79,7 +79,7 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
 }
 
 .load-label {
-  top: 544px;
+  top: 580px;
   left: 8px;
 }
 
@@ -183,9 +183,14 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
   top: 496px;
 }
 
+.zoom-photo-button,
+.zoom-photo-button:hover {
+  top: 532px;
+}
+
 .load-button,
 .load-button:hover {
-  top: 566px;
+  top: 602px;
   background-color: #5DA93D;
 }
 

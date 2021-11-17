@@ -19,6 +19,8 @@ use process::BRSProcessor;
 use image_combiner::ImageCombiner;
 use color::Color;
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -38,3 +40,7 @@ pub fn get_image_combiner() -> ImageCombiner {
     ImageCombiner::default()
 }
 
+#[wasm_bindgen(js_name = getVersion)]
+pub fn get_version() -> JsValue {
+    JsValue::from(VERSION)
+}
