@@ -14,6 +14,8 @@ use wasm_bindgen::prelude::*;
 use brickadia::read::SaveReader;
 use brickadia::save::{Brick, Rotation, Direction, BrickColor, Size};
 
+const NUM_DIVISIONS: usize = 500;
+
 #[derive(PartialEq, Eq, Hash)]
 pub struct BrickShape {
     name_index: u32,
@@ -32,6 +34,8 @@ pub struct BRSProcessor {
     vertex_buffer: Vec<f32>,
     bricks: Vec<Brick>,
     brick_assets: Vec<String>,
+    bot_height_indices: [i32; NUM_DIVISIONS],
+    top_height_indices: [i32; NUM_DIVISIONS],
     colors: Vec<Color>,
     description: String,
     brick_count: i32,
@@ -97,6 +101,8 @@ impl BRSProcessor {
             centroid,
             bounds,
             vertex_buffer: Vec::new(),
+            bot_height_indices: [-1; NUM_DIVISIONS],
+            top_height_indices: [-1; NUM_DIVISIONS],
         };
 
         processor.discard_hidden_bricks();
@@ -129,6 +135,23 @@ impl BRSProcessor {
     #[wasm_bindgen(js_name = buildVertexBuffer)]
     pub fn build_vertex_buffer(&mut self, draw_ols: bool, draw_fills: bool) -> Result<(), JsValue> {
         self.clear_vertex_buffer();
+
+        let mut min_height:i32 = std::i32::MAX;
+        let mut max_height:i32 = std::i32::MIN;
+
+        for brick in &self.bricks {
+            let size = util::sizer(brick);
+            let top = brick.position.2 + size.2 as i32;
+            let bot = brick.position.2 - size.2 as i32;
+            min_height = std::cmp::min(min_height, bot);
+            max_height = std::cmp::max(max_height, top);
+        }
+
+        self.bot_height_indices = [-1; NUM_DIVISIONS];
+        self.top_height_indices = [-1; NUM_DIVISIONS];
+
+        let cutoff_jump: f64 = (max_height - min_height) as f64 / NUM_DIVISIONS as f64;
+        let mut cutoff_index: i32 = 0;
        
         // Calculate shapes for rendering and save Centroid
         for brick in &self.bricks {
@@ -137,6 +160,19 @@ impl BRSProcessor {
             }
 
             let name = &self.brick_assets[brick.asset_name_index as usize];
+
+            let size = util::sizer(brick);
+            let top = brick.position.2 + size.2 as i32;
+
+            let mut cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
+
+            if cutoff_index < NUM_DIVISIONS as i32 && self.bot_height_indices[cutoff_index as usize] == -1 {
+                while top >= cur_cutoff && cutoff_index < NUM_DIVISIONS as i32 {
+                    self.bot_height_indices[cutoff_index as usize] = self.vertex_buffer.len() as i32;
+                    cutoff_index += 1;
+                    cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
+                }
+            }
 
             // Get brick color as rgba 0.0 - 1.0 f32
             let mut brick_color;
@@ -174,7 +210,11 @@ impl BRSProcessor {
 
         }
 
-        self.gl_buffer_data(&self.vertex_buffer);
+        for i in 0..NUM_DIVISIONS-1 {
+            self.top_height_indices[i] = self.bot_height_indices[i + 1];
+        }
+        self.top_height_indices[NUM_DIVISIONS-1] = self.vertex_buffer.len() as i32;
+
         Ok(())
     }
 
@@ -186,13 +226,23 @@ impl BRSProcessor {
         let mut max_height:i32 = std::i32::MIN;
 
         for brick in &self.bricks {
-            let height = brick.position.2;
-            min_height = std::cmp::min(min_height, height);
-            max_height = std::cmp::max(max_height, height);
+            let size = util::sizer(brick);
+            let top = brick.position.2 + size.2 as i32;
+            let bot = brick.position.2 - size.2 as i32;
+            min_height = std::cmp::min(min_height, bot);
+            max_height = std::cmp::max(max_height, top);
         }
-       
+
+        self.bot_height_indices = [-1; NUM_DIVISIONS];
+        self.top_height_indices = [-1; NUM_DIVISIONS];
+
+        let cutoff_jump: f64 = (max_height - min_height) as f64 / NUM_DIVISIONS as f64;
+        let mut cutoff_index: i32 = 0;
+
         // Calculate shapes for rendering and save Centroid
-        for brick in &self.bricks {
+        for i in 0..self.bricks.len() {
+            let brick = &self.bricks[i];
+
             if !brick.visibility {
                 continue;
             }
@@ -202,6 +252,19 @@ impl BRSProcessor {
 
             let height = brick.position.2;
             let relative_height = (height - min_height) as f32 / (max_height - min_height) as f32;
+
+            let size = util::sizer(brick);
+            let top = brick.position.2 + size.2 as i32;
+
+            let mut cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
+
+            if cutoff_index < NUM_DIVISIONS as i32 && self.bot_height_indices[cutoff_index as usize] == -1 {
+                while top >= cur_cutoff && cutoff_index < NUM_DIVISIONS as i32 {
+                    self.bot_height_indices[cutoff_index as usize] = self.vertex_buffer.len() as i32;
+                    cutoff_index += 1;
+                    cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
+                }
+            }
 
             // Add shape to save
             let mut vertex_array = Vec::new();
@@ -215,12 +278,16 @@ impl BRSProcessor {
             }
             self.vertex_buffer.append(&mut vertex_array);
         }
+
+        for i in 0..NUM_DIVISIONS-1 {
+            self.top_height_indices[i] = self.bot_height_indices[i + 1];
+        }
+        self.top_height_indices[NUM_DIVISIONS-1] = self.vertex_buffer.len() as i32;
         
-        self.gl_buffer_data(&self.vertex_buffer);
         Ok(())
     }
 
-    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {
+    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32, minz: f32, maxz: f32) -> Result<(), JsValue> {
         let pan = Point { x: pan_x, y: pan_y};
         let size = Point { x: size_x as f32, y: size_y as f32};
 
@@ -237,7 +304,10 @@ impl BRSProcessor {
 
         self.gl.uniform_matrix3fv_with_f32_array(Some(self.matrix_uniform_location.as_ref()), false, &matrix);
 
-        let vertex_count = (self.vertex_buffer.len() / 5) as i32;
+        let clipped_buffer = &self.vertex_buffer[self.bot_height_indices[minz as usize] as usize..self.top_height_indices[maxz as usize] as usize];
+        self.gl_buffer_data(clipped_buffer);
+
+        let vertex_count = (clipped_buffer.len() / 5) as i32;
 
         if vertex_count > 0 {
             self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);

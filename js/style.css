@@ -214,6 +214,13 @@ https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
   height: 36px;
 }
 
+.range {
+  position: absolute;
+  bottom: 30px;
+  left: 200px;
+  right: 200px;
+}
+
 /* invisible file input */
 /* makes load button stylizing possible */
 input[type="file"] {

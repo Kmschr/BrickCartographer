@@ -66,7 +66,7 @@ export const FILL = <svg xmlns="http://www.w3.org/2000/svg" className="icon icon
 <rect x="10" y="15" width="4" height="6" rx="1" />
 </svg>
 
-export const LEGO = <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-lego" width="28" height="28" viewBox="0 0 24 24" stroke-width="1.5" stroke="#A7BBCE" fill="none" stroke-linecap="round" stroke-linejoin="round">
+export const LEGO = <svg xmlns="http://www.w3.org/2000/svg" className="icon icon-tabler icon-tabler-lego" width="28" height="28" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#A7BBCE" fill="none" strokeLinecap="round" strokeLinejoin="round">
 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
 <line x1="9.5" y1="11" x2="9.51" y2="11" />
 <line x1="14.5" y1="11" x2="14.51" y2="11" />
