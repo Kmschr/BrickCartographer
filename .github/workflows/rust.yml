@@ -27,3 +27,12 @@ jobs:
       run: npm ci
     - name: Build site (wasm + vite)
       run: npm run build
+    - name: Deploy bundled static site
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        personal_token: ${{ secrets.BUNDLED_DEPLOY_TOKEN }}
+        external_repository: Kmschr/BrickCartographer-bundled
+        publish_branch: main
+        publish_dir: ./dist/public
+        force_orphan: true
