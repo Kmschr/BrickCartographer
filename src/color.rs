@@ -17,6 +17,15 @@ impl Color {
         }
     }
 
+    pub fn to_bytes(&self) -> [u8; 4] {
+        [
+            (self.r * 255.0) as u8,
+            (self.g * 255.0) as u8,
+            (self.b * 255.0) as u8,
+            (self.a * 255.0) as u8,
+        ]
+    }
+
     pub fn convert_to_srgb(&mut self) {
         self.r = val_as_srgb(self.r);
         self.g = val_as_srgb(self.g);

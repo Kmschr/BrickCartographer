@@ -1,4 +1,4 @@
-name: Rust
+name: Build
 
 on:
   push:
@@ -15,8 +15,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - name: Install cargo-binstall
+      uses: cargo-bins/cargo-binstall@main
     - name: Install wasm-pack
-      uses: jetli/wasm-pack-action@v0.3.0
-    - name: Build Rust WASM
-      run: wasm-pack build
+      run: cargo binstall wasm-pack --no-confirm
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+    - name: Install npm dependencies
+      run: npm ci
+    - name: Build site (wasm + vite)
+      run: npm run build

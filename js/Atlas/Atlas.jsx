@@ -5,6 +5,7 @@ import { Range } from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
 import ACM_City from "../../default_saves/ACM_City.brs";
+import wasm from '../wasm';
 
 const DEFAULT_ROTATION = 0;
 const ROTATE_ANGLE = Math.PI / 8;
@@ -14,8 +15,6 @@ const MIN_SCALE = 0.01;
 const DEFAULT_PAN = { x: 0, y: 0 };
 const SCROLL_INTENSITY = 1.2;
 const NUM_DIVISIONS = 500;
-
-const wasm = import('../../pkg');
 
 export default class Atlas extends Component {
 

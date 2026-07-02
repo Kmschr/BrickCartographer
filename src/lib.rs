@@ -17,7 +17,6 @@ mod m3;
 use wasm_bindgen::prelude::*;
 use process::BRSProcessor;
 use image_combiner::ImageCombiner;
-use color::Color;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 

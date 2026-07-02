@@ -8,14 +8,14 @@ pub const VERTEX_SHADER_CODE: &str = r#"
     #endif
 
     attribute vec2 a_position;
-    attribute vec3 a_color;
+    attribute vec4 a_color;
 
     uniform mat3 u_matrix;
 
     varying vec4 v_color;
 
     void main() {
-        v_color = vec4(a_color, 1);
+        v_color = a_color;
         gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
     }
 "#;

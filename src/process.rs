@@ -31,7 +31,7 @@ pub struct BRSProcessor {
     matrix_uniform_location: WebGlUniformLocation,
     centroid: (i32, i32),
     bounds: (i32, i32, i32, i32),
-    vertex_buffer: Vec<f32>,
+    vertex_buffer: Vec<u8>,
     bricks: Vec<Brick>,
     brick_assets: Vec<String>,
     bot_height_indices: [i32; NUM_DIVISIONS],
@@ -188,24 +188,13 @@ impl BRSProcessor {
             if draw_fills {
                 // Calculate Shape vertices
                 let verts = calculate_brick_vertices(&name, &brick);
-
-                // Add shape to save
-                let fill = RenderObject {
-                    vertices: verts,
-                    color: brick_color,
-                };
-                self.vertex_buffer.append(&mut fill.get_vertex_array());
+                push_vertices(&mut self.vertex_buffer, &verts, brick_color.to_bytes());
             }
-            
+
             if draw_ols {
                 // Add brick outline for rendering
                 let ol_verts = calculate_brick_outline_vertices(&name, &brick);
-
-                let outline = RenderObject {
-                    vertices: ol_verts,
-                    color: Color::black()
-                };
-                self.vertex_buffer.append(&mut outline.get_vertex_array());
+                push_vertices(&mut self.vertex_buffer, &ol_verts, Color::black().to_bytes());
             }
 
         }
@@ -214,6 +203,8 @@ impl BRSProcessor {
             self.top_height_indices[i] = self.bot_height_indices[i + 1];
         }
         self.top_height_indices[NUM_DIVISIONS-1] = self.vertex_buffer.len() as i32;
+
+        self.gl_buffer_data(&self.vertex_buffer);
 
         Ok(())
     }
@@ -267,23 +258,17 @@ impl BRSProcessor {
             }
 
             // Add shape to save
-            let mut vertex_array = Vec::new();
-            let vertex_count = verts.len() / 2;
-            for i in 0..vertex_count {
-                vertex_array.push(verts[i*2]);
-                vertex_array.push(verts[i*2 + 1]);
-                for _ in 0..3 {
-                    vertex_array.push(relative_height);
-                }
-            }
-            self.vertex_buffer.append(&mut vertex_array);
+            let level = (relative_height * 255.0) as u8;
+            push_vertices(&mut self.vertex_buffer, &verts, [level, level, level, 255]);
         }
 
         for i in 0..NUM_DIVISIONS-1 {
             self.top_height_indices[i] = self.bot_height_indices[i + 1];
         }
         self.top_height_indices[NUM_DIVISIONS-1] = self.vertex_buffer.len() as i32;
-        
+
+        self.gl_buffer_data(&self.vertex_buffer);
+
         Ok(())
     }
 
@@ -304,13 +289,14 @@ impl BRSProcessor {
 
         self.gl.uniform_matrix3fv_with_f32_array(Some(self.matrix_uniform_location.as_ref()), false, &matrix);
 
-        let clipped_buffer = &self.vertex_buffer[self.bot_height_indices[minz as usize] as usize..self.top_height_indices[maxz as usize] as usize];
-        self.gl_buffer_data(clipped_buffer);
-
-        let vertex_count = (clipped_buffer.len() / 5) as i32;
+        // Vertex data is already on the GPU, sorted by height; draw the slider's slice of it
+        let start = self.bot_height_indices[minz as usize];
+        let end = self.top_height_indices[maxz as usize];
+        let first_vertex = start / VERTEX_STRIDE;
+        let vertex_count = (end - start) / VERTEX_STRIDE;
 
         if vertex_count > 0 {
-            self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, vertex_count);
+            self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, first_vertex, vertex_count);
         }
 
         Ok(())
@@ -320,7 +306,7 @@ impl BRSProcessor {
 
 impl BRSProcessor {
     pub fn clear_vertex_buffer(&mut self) {
-        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * VERTEX_SIZE as usize);
+        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * VERTEX_STRIDE as usize);
     }
 
     pub fn discard_hidden_bricks(&mut self) {
@@ -351,11 +337,11 @@ impl BRSProcessor {
         log(&format!("Bricks Discarded: {}", copy_count));
     }
 
-    pub fn gl_buffer_data(&self, vertex_buffer: &[f32]) {
+    pub fn gl_buffer_data(&self, vertex_buffer: &[u8]) {
         unsafe {
             self.gl.buffer_data_with_array_buffer_view(
                 WebGlRenderingContext::ARRAY_BUFFER,
-                &js_sys::Float32Array::view(vertex_buffer),
+                &js_sys::Uint8Array::view(vertex_buffer),
                 WebGlRenderingContext::STATIC_DRAW
             );
         }
