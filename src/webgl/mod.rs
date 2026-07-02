@@ -9,7 +9,7 @@ mod glsl;
 // Bytes per vertex: x (f32), y (f32), rgba (4 x u8)
 pub const VERTEX_STRIDE:i32 = 12;
 
-pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLocation), JsValue> {
+pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLocation, u32, u32), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = match document.get_elements_by_class_name("map-canvas").get_with_index(0) {
         Some(v) => v,
@@ -76,32 +76,18 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
     };
     gl.use_program(Some(&program));
 
+    // Indices are u32 so a large map's vertices fit in a single indexed draw call
+    if gl.get_extension("OES_element_index_uint")?.is_none() {
+        error("RUST ERROR: No OES_element_index_uint support by browser");
+        return Err(JsValue::from("No OES_element_index_uint support by browser"));
+    }
+
     let position_attribute_location: u32 = gl.get_attrib_location(&program, "a_position").try_into().unwrap();
     let color_attribute_location: u32 = gl.get_attrib_location(&program, "a_color").try_into().unwrap();
     let matrix_uniform_location = gl.get_uniform_location(&program, "u_matrix").unwrap();
-    let vertex_buffer = gl.create_buffer().ok_or("failed to create buffer").unwrap();
-
-    gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
-
-    gl.vertex_attrib_pointer_with_i32(
-        position_attribute_location,
-        2, // Number of elements per attribute
-        WebGlRenderingContext::FLOAT,
-        false,
-        VERTEX_STRIDE, // Size of individual vertex
-        0 // Offset from beginning of a vertex to this attribute
-    );
-    gl.vertex_attrib_pointer_with_i32(
-        color_attribute_location,
-        4, // Number of elements per attribute
-        WebGlRenderingContext::UNSIGNED_BYTE,
-        true, // Normalize 0-255 to 0.0-1.0
-        VERTEX_STRIDE, // Size of individual vertex
-        2 * std::mem::size_of::<f32>() as i32   // Offset from beginning of a vertex to this attribute
-    );
 
     gl.enable_vertex_attrib_array(position_attribute_location);
     gl.enable_vertex_attrib_array(color_attribute_location);
 
-    Ok((gl, matrix_uniform_location))
+    Ok((gl, matrix_uniform_location, position_attribute_location, color_attribute_location))
 }

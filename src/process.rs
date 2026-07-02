@@ -8,13 +8,21 @@ use crate::*;
 
 use std::collections::HashSet;
 
-use web_sys::{WebGlRenderingContext, WebGlUniformLocation};
+use web_sys::{WebGlBuffer, WebGlRenderingContext, WebGlUniformLocation};
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
 use brickadia::read::SaveReader;
 use brickadia::save::{Brick, Rotation, Direction, BrickColor, Size};
 
-const NUM_DIVISIONS: usize = 500;
+// Geometry is built and uploaded to the GPU in chunks so wasm memory stays
+// bounded no matter the build size. Also keeps every draw call well under
+// browser index-count caps (e.g. Firefox's webgl.max-vert-ids-per-draw, 30M).
+const CHUNK_INDEX_LIMIT: usize = 3_000_000;
+
+// Coverage grid for occlusion culling: cells this many save units square
+// (half a stud), coarsened as needed to cap the grid dimensions on huge maps.
+const CULL_CELL_SIZE: i32 = 5;
+const CULL_MAX_GRID_DIM: i32 = 4096;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct BrickShape {
@@ -25,17 +33,25 @@ pub struct BrickShape {
     direction: Direction,
 }
 
+struct BufferChunk {
+    vertex_buffer: WebGlBuffer,
+    index_buffer: WebGlBuffer,
+    index_count: i32,
+}
+
 #[wasm_bindgen]
 pub struct BRSProcessor {
     gl: WebGlRenderingContext,
     matrix_uniform_location: WebGlUniformLocation,
+    position_attribute_location: u32,
+    color_attribute_location: u32,
     centroid: (i32, i32),
     bounds: (i32, i32, i32, i32),
     vertex_buffer: Vec<u8>,
+    index_buffer: Vec<u32>,
+    chunks: Vec<BufferChunk>,
     bricks: Vec<Brick>,
     brick_assets: Vec<String>,
-    bot_height_indices: [i32; NUM_DIVISIONS],
-    top_height_indices: [i32; NUM_DIVISIONS],
     colors: Vec<Color>,
     description: String,
     brick_count: i32,
@@ -88,7 +104,7 @@ impl BRSProcessor {
        // log(&format!("{:?}", players));
        */
     
-        let (gl, matrix_uniform_location) = webgl::get_rendering_context()?;
+        let (gl, matrix_uniform_location, position_attribute_location, color_attribute_location) = webgl::get_rendering_context()?;
 
         let mut processor = BRSProcessor {
             bricks,
@@ -98,11 +114,13 @@ impl BRSProcessor {
             brick_count,
             gl,
             matrix_uniform_location,
+            position_attribute_location,
+            color_attribute_location,
             centroid,
             bounds,
             vertex_buffer: Vec::new(),
-            bot_height_indices: [-1; NUM_DIVISIONS],
-            top_height_indices: [-1; NUM_DIVISIONS],
+            index_buffer: Vec::new(),
+            chunks: Vec::new(),
         };
 
         processor.discard_hidden_bricks();
@@ -136,43 +154,20 @@ impl BRSProcessor {
     pub fn build_vertex_buffer(&mut self, draw_ols: bool, draw_fills: bool) -> Result<(), JsValue> {
         self.clear_vertex_buffer();
 
-        let mut min_height:i32 = std::i32::MAX;
-        let mut max_height:i32 = std::i32::MIN;
+        let included = self.visible_bricks();
+        // Outline-only mode draws no fills, so nothing occludes anything
+        let hidden = if draw_fills {
+            self.cull_covered(&included)
+        } else {
+            vec![false; included.len()]
+        };
 
-        for brick in &self.bricks {
-            let size = util::sizer(brick);
-            let top = brick.position.2 + size.2 as i32;
-            let bot = brick.position.2 - size.2 as i32;
-            min_height = std::cmp::min(min_height, bot);
-            max_height = std::cmp::max(max_height, top);
-        }
-
-        self.bot_height_indices = [-1; NUM_DIVISIONS];
-        self.top_height_indices = [-1; NUM_DIVISIONS];
-
-        let cutoff_jump: f64 = (max_height - min_height) as f64 / NUM_DIVISIONS as f64;
-        let mut cutoff_index: i32 = 0;
-       
-        // Calculate shapes for rendering and save Centroid
-        for brick in &self.bricks {
-            if !brick.visibility {
+        for (k, &i) in included.iter().enumerate() {
+            if hidden[k] {
                 continue;
             }
-
+            let brick = &self.bricks[i];
             let name = &self.brick_assets[brick.asset_name_index as usize];
-
-            let size = util::sizer(brick);
-            let top = brick.position.2 + size.2 as i32;
-
-            let mut cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
-
-            if cutoff_index < NUM_DIVISIONS as i32 && self.bot_height_indices[cutoff_index as usize] == -1 {
-                while top >= cur_cutoff && cutoff_index < NUM_DIVISIONS as i32 {
-                    self.bot_height_indices[cutoff_index as usize] = self.vertex_buffer.len() as i32;
-                    cutoff_index += 1;
-                    cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
-                }
-            }
 
             // Get brick color as rgba 0.0 - 1.0 f32
             let mut brick_color;
@@ -188,23 +183,21 @@ impl BRSProcessor {
             if draw_fills {
                 // Calculate Shape vertices
                 let verts = calculate_brick_vertices(&name, &brick);
-                push_vertices(&mut self.vertex_buffer, &verts, brick_color.to_bytes());
+                push_shape(&mut self.vertex_buffer, &mut self.index_buffer, &verts, brick_color.to_bytes());
             }
 
             if draw_ols {
                 // Add brick outline for rendering
                 let ol_verts = calculate_brick_outline_vertices(&name, &brick);
-                push_vertices(&mut self.vertex_buffer, &ol_verts, Color::black().to_bytes());
+                push_shape(&mut self.vertex_buffer, &mut self.index_buffer, &ol_verts, Color::black().to_bytes());
             }
 
+            if self.index_buffer.len() >= CHUNK_INDEX_LIMIT {
+                self.flush_chunk()?;
+            }
         }
 
-        for i in 0..NUM_DIVISIONS-1 {
-            self.top_height_indices[i] = self.bot_height_indices[i + 1];
-        }
-        self.top_height_indices[NUM_DIVISIONS-1] = self.vertex_buffer.len() as i32;
-
-        self.gl_buffer_data(&self.vertex_buffer);
+        self.flush_chunk()?;
 
         Ok(())
     }
@@ -213,30 +206,16 @@ impl BRSProcessor {
     pub fn build_heightmap_vertex_buffer(&mut self) -> Result<(), JsValue> {
         self.clear_vertex_buffer();
 
-        let mut min_height:i32 = std::i32::MAX;
-        let mut max_height:i32 = std::i32::MIN;
+        let (min_height, max_height) = self.height_extent();
 
-        for brick in &self.bricks {
-            let size = util::sizer(brick);
-            let top = brick.position.2 + size.2 as i32;
-            let bot = brick.position.2 - size.2 as i32;
-            min_height = std::cmp::min(min_height, bot);
-            max_height = std::cmp::max(max_height, top);
-        }
+        let included = self.visible_bricks();
+        let hidden = self.cull_covered(&included);
 
-        self.bot_height_indices = [-1; NUM_DIVISIONS];
-        self.top_height_indices = [-1; NUM_DIVISIONS];
-
-        let cutoff_jump: f64 = (max_height - min_height) as f64 / NUM_DIVISIONS as f64;
-        let mut cutoff_index: i32 = 0;
-
-        // Calculate shapes for rendering and save Centroid
-        for i in 0..self.bricks.len() {
-            let brick = &self.bricks[i];
-
-            if !brick.visibility {
+        for (k, &i) in included.iter().enumerate() {
+            if hidden[k] {
                 continue;
             }
+            let brick = &self.bricks[i];
             let name = &self.brick_assets[brick.asset_name_index as usize];
 
             let verts = calculate_brick_vertices(&name, &brick);
@@ -244,35 +223,21 @@ impl BRSProcessor {
             let height = brick.position.2;
             let relative_height = (height - min_height) as f32 / (max_height - min_height) as f32;
 
-            let size = util::sizer(brick);
-            let top = brick.position.2 + size.2 as i32;
-
-            let mut cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
-
-            if cutoff_index < NUM_DIVISIONS as i32 && self.bot_height_indices[cutoff_index as usize] == -1 {
-                while top >= cur_cutoff && cutoff_index < NUM_DIVISIONS as i32 {
-                    self.bot_height_indices[cutoff_index as usize] = self.vertex_buffer.len() as i32;
-                    cutoff_index += 1;
-                    cur_cutoff = min_height + (cutoff_jump * cutoff_index as f64) as i32;
-                }
-            }
-
             // Add shape to save
             let level = (relative_height * 255.0) as u8;
-            push_vertices(&mut self.vertex_buffer, &verts, [level, level, level, 255]);
+            push_shape(&mut self.vertex_buffer, &mut self.index_buffer, &verts, [level, level, level, 255]);
+
+            if self.index_buffer.len() >= CHUNK_INDEX_LIMIT {
+                self.flush_chunk()?;
+            }
         }
 
-        for i in 0..NUM_DIVISIONS-1 {
-            self.top_height_indices[i] = self.bot_height_indices[i + 1];
-        }
-        self.top_height_indices[NUM_DIVISIONS-1] = self.vertex_buffer.len() as i32;
-
-        self.gl_buffer_data(&self.vertex_buffer);
+        self.flush_chunk()?;
 
         Ok(())
     }
 
-    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32, minz: f32, maxz: f32) -> Result<(), JsValue> {
+    pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {
         let pan = Point { x: pan_x, y: pan_y};
         let size = Point { x: size_x as f32, y: size_y as f32};
 
@@ -289,14 +254,32 @@ impl BRSProcessor {
 
         self.gl.uniform_matrix3fv_with_f32_array(Some(self.matrix_uniform_location.as_ref()), false, &matrix);
 
-        // Vertex data is already on the GPU, sorted by height; draw the slider's slice of it
-        let start = self.bot_height_indices[minz as usize];
-        let end = self.top_height_indices[maxz as usize];
-        let first_vertex = start / VERTEX_STRIDE;
-        let vertex_count = (end - start) / VERTEX_STRIDE;
-
-        if vertex_count > 0 {
-            self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, first_vertex, vertex_count);
+        // Chunks hold exactly the visible bricks, in draw order
+        for chunk in &self.chunks {
+            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&chunk.vertex_buffer));
+            self.gl.vertex_attrib_pointer_with_i32(
+                self.position_attribute_location,
+                2, // Number of elements per attribute
+                WebGlRenderingContext::FLOAT,
+                false,
+                VERTEX_STRIDE, // Size of individual vertex
+                0 // Offset from beginning of a vertex to this attribute
+            );
+            self.gl.vertex_attrib_pointer_with_i32(
+                self.color_attribute_location,
+                4, // Number of elements per attribute
+                WebGlRenderingContext::UNSIGNED_BYTE,
+                true, // Normalize 0-255 to 0.0-1.0
+                VERTEX_STRIDE, // Size of individual vertex
+                2 * std::mem::size_of::<f32>() as i32 // Offset from beginning of a vertex to this attribute
+            );
+            self.gl.bind_buffer(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, Some(&chunk.index_buffer));
+            self.gl.draw_elements_with_i32(
+                WebGlRenderingContext::TRIANGLES,
+                chunk.index_count,
+                WebGlRenderingContext::UNSIGNED_INT,
+                0
+            );
         }
 
         Ok(())
@@ -305,8 +288,141 @@ impl BRSProcessor {
 }
 
 impl BRSProcessor {
+    fn height_extent(&self) -> (i32, i32) {
+        let mut min_height: i32 = std::i32::MAX;
+        let mut max_height: i32 = std::i32::MIN;
+        for brick in &self.bricks {
+            let size = util::sizer(brick);
+            let top = brick.position.2 + size.2 as i32;
+            let bot = brick.position.2 - size.2 as i32;
+            min_height = std::cmp::min(min_height, bot);
+            max_height = std::cmp::max(max_height, top);
+        }
+        (min_height, max_height)
+    }
+
+    // Indices of visible bricks in draw order (bricks are pre-sorted by top surface)
+    fn visible_bricks(&self) -> Vec<usize> {
+        self.bricks.iter().enumerate()
+            .filter(|(_, brick)| brick.visibility)
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    // Occlusion culling: walking bricks top-down, a brick is hidden if every
+    // coverage-grid cell its footprint touches was fully covered by the
+    // rectangular fills of bricks drawn above it. Conservative on both sides —
+    // shaped bricks never cover, and partial cells never count as covered.
+    fn cull_covered(&self, included: &[usize]) -> Vec<bool> {
+        let mut hidden = vec![false; included.len()];
+        if included.is_empty() {
+            return hidden;
+        }
+
+        let mut min_x = std::i32::MAX;
+        let mut min_y = std::i32::MAX;
+        let mut max_x = std::i32::MIN;
+        let mut max_y = std::i32::MIN;
+        for &i in included {
+            let brick = &self.bricks[i];
+            let size = util::sizer(brick);
+            min_x = std::cmp::min(min_x, brick.position.0 - size.0 as i32);
+            min_y = std::cmp::min(min_y, brick.position.1 - size.1 as i32);
+            max_x = std::cmp::max(max_x, brick.position.0 + size.0 as i32);
+            max_y = std::cmp::max(max_y, brick.position.1 + size.1 as i32);
+        }
+
+        let extent = std::cmp::max(max_x - min_x, max_y - min_y);
+        let cell = std::cmp::max(CULL_CELL_SIZE, (extent + CULL_MAX_GRID_DIM - 1) / CULL_MAX_GRID_DIM);
+        let cols = ((max_x - min_x) / cell + 1) as usize;
+        let rows = ((max_y - min_y) / cell + 1) as usize;
+        let mut covered = vec![false; cols * rows];
+
+        let mut cull_count = 0;
+        for k in (0..included.len()).rev() {
+            let brick = &self.bricks[included[k]];
+            let size = util::sizer(brick);
+            let x1 = brick.position.0 - size.0 as i32 - min_x;
+            let y1 = brick.position.1 - size.1 as i32 - min_y;
+            let x2 = x1 + 2 * size.0 as i32;
+            let y2 = y1 + 2 * size.1 as i32;
+            if x2 <= x1 || y2 <= y1 {
+                continue;
+            }
+
+            let mut all_covered = true;
+            'query: for r in (y1 / cell)..=((y2 - 1) / cell) {
+                for c in (x1 / cell)..=((x2 - 1) / cell) {
+                    if !covered[r as usize * cols + c as usize] {
+                        all_covered = false;
+                        break 'query;
+                    }
+                }
+            }
+            if all_covered {
+                hidden[k] = true;
+                cull_count += 1;
+                continue;
+            }
+
+            let name = &self.brick_assets[brick.asset_name_index as usize];
+            if is_full_rect(name) {
+                // Mark only cells lying entirely inside the footprint
+                for r in ((y1 + cell - 1) / cell)..(y2 / cell) {
+                    for c in ((x1 + cell - 1) / cell)..(x2 / cell) {
+                        covered[r as usize * cols + c as usize] = true;
+                    }
+                }
+            }
+        }
+        log(&format!("Bricks Culled: {}", cull_count));
+
+        hidden
+    }
+
     pub fn clear_vertex_buffer(&mut self) {
-        self.vertex_buffer = Vec::with_capacity(self.bricks.len() * 6 * VERTEX_STRIDE as usize);
+        for chunk in self.chunks.drain(..) {
+            self.gl.delete_buffer(Some(&chunk.vertex_buffer));
+            self.gl.delete_buffer(Some(&chunk.index_buffer));
+        }
+        self.vertex_buffer.clear();
+        self.index_buffer.clear();
+    }
+
+    // Uploads the accumulated geometry to fresh GPU buffers and resets the
+    // CPU-side vecs, keeping wasm memory bounded regardless of build size
+    fn flush_chunk(&mut self) -> Result<(), JsValue> {
+        if self.index_buffer.is_empty() {
+            return Ok(());
+        }
+
+        let vertex_buffer = self.gl.create_buffer().ok_or_else(|| JsValue::from("failed to create vertex buffer"))?;
+        let index_buffer = self.gl.create_buffer().ok_or_else(|| JsValue::from("failed to create index buffer"))?;
+
+        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
+        self.gl.bind_buffer(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, Some(&index_buffer));
+        unsafe {
+            self.gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &js_sys::Uint8Array::view(&self.vertex_buffer),
+                WebGlRenderingContext::STATIC_DRAW
+            );
+            self.gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ELEMENT_ARRAY_BUFFER,
+                &js_sys::Uint32Array::view(&self.index_buffer),
+                WebGlRenderingContext::STATIC_DRAW
+            );
+        }
+
+        self.chunks.push(BufferChunk {
+            vertex_buffer,
+            index_buffer,
+            index_count: self.index_buffer.len() as i32,
+        });
+        self.vertex_buffer.clear();
+        self.index_buffer.clear();
+
+        Ok(())
     }
 
     pub fn discard_hidden_bricks(&mut self) {
@@ -337,13 +453,4 @@ impl BRSProcessor {
         log(&format!("Bricks Discarded: {}", copy_count));
     }
 
-    pub fn gl_buffer_data(&self, vertex_buffer: &[u8]) {
-        unsafe {
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &js_sys::Uint8Array::view(vertex_buffer),
-                WebGlRenderingContext::STATIC_DRAW
-            );
-        }
-    }
 }

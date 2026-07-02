@@ -40,6 +40,21 @@ pub fn calculate_brick_vertices(name: &String, brick: &Brick) -> Vec<f32> {
     }
 }
 
+// Whether a brick's fill always covers its full rectangular footprint, making it
+// safe to treat as an occluder of bricks below it. Conservative: shaped bricks
+// (wedges, ramps, rounds, corners) never count, even in orientations that render
+// as full rectangles.
+pub fn is_full_rect(name: &str) -> bool {
+    !matches!(name,
+        "B_2x2_Corner"
+        | "PB_DefaultSideWedge" | "PB_DefaultSideWedgeTile" | "PB_DefaultMicroWedge"
+        | "PB_DefaultWedge"
+        | "PB_DefaultRamp" | "PB_DefaultRampCorner" | "PB_DefaultRampCornerInverted"
+        | "PB_DefaultRampCrest" | "PB_DefaultRampCrestEnd"
+        | "PB_DefaultPole"
+        | "B_1x1F_Round" | "B_1x1_Round" | "B_2x2F_Round" | "B_2x2_Round" | "B_4x4_Round")
+}
+
 pub fn calculate_brick_outline_vertices(name: &String, brick: &Brick) -> Vec<f32> {
     let shape = Shape::from(brick);
     match name.as_str() {

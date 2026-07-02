@@ -1,9 +1,6 @@
 import React, {Component} from 'react';
 import {saveBlob} from "./util";
 import {ROTATE_CW, ROTATE_CCW, HOME, FULLSCREEN, BORDERS, FILL, MOUNTAIN, PHOTO, MAP, LEGO, LOAD, GITHUB} from "./icons";
-import { Range } from 'rc-slider';
-import 'rc-slider/assets/index.css';
-
 import ACM_City from "../../default_saves/ACM_City.brs";
 import wasm from '../wasm';
 
@@ -14,7 +11,6 @@ const MAX_SCALE = 20;
 const MIN_SCALE = 0.01;
 const DEFAULT_PAN = { x: 0, y: 0 };
 const SCROLL_INTENSITY = 1.2;
-const NUM_DIVISIONS = 500;
 
 export default class Atlas extends Component {
 
@@ -30,7 +26,6 @@ export default class Atlas extends Component {
         this.loadDefaultCity = this.loadDefaultCity.bind(this);
         this.toggleBrickFill = this.toggleBrickFill.bind(this);
         this.toggleHeightmap = this.toggleHeightmap.bind(this);
-        this.handleSlider = this.handleSlider.bind(this);
         this.state = {
             save: null,
             fullscreen: false,
@@ -42,8 +37,6 @@ export default class Atlas extends Component {
             scale: DEFAULT_SCALE,
             pan: DEFAULT_PAN,
             dragPos: DEFAULT_PAN,
-            minz: 0,
-            maxz: NUM_DIVISIONS-1,
             map: "",
         };
 
@@ -80,10 +73,6 @@ export default class Atlas extends Component {
                         onWheel={(e) => this.handleWheelEvent(e)}
                     />
                 </div>
-                <div className="range">
-                    <Range 
-                        allowCross={false} defaultValue={[0, NUM_DIVISIONS-1]} max={NUM_DIVISIONS-1} onChange={this.handleSlider}/>
-                </div>
                 <div className="button-panel" onMouseMove={() => this.state.isDragging = false}></div>
                 <div className="button-label view-label">VIEW</div>
                 <div className="map-button zoom-in-button" title="Zoom In" onClick={() => {this.zoomIn(); this.redraw()}}>+</div>
@@ -115,14 +104,8 @@ export default class Atlas extends Component {
                 this.canvas.width = this.canvas.clientWidth;
                 this.canvas.height = this.canvas.clientHeight;
             }
-            this.state.save.render(this.canvas.width, this.canvas.height, this.state.pan.x, this.state.pan.y, this.state.scale, this.state.rotation, this.state.minz, this.state.maxz);
+            this.state.save.render(this.canvas.width, this.canvas.height, this.state.pan.x, this.state.pan.y, this.state.scale, this.state.rotation);
         }
-    }
-
-    handleSlider(event) {
-        this.state.minz = event[0];
-        this.state.maxz = event[1];
-        this.redraw()
     }
 
     handleMouseDownEvent(event) {
@@ -251,7 +234,7 @@ export default class Atlas extends Component {
 
     takeScreenshot() {
         if (this.state.save) {
-            this.state.save.render(this.canvas.width, this.canvas.height, this.state.pan.x, this.state.pan.y, this.state.scale, this.state.rotation, this.state.minz, this.state.maxz);
+            this.state.save.render(this.canvas.width, this.canvas.height, this.state.pan.x, this.state.pan.y, this.state.scale, this.state.rotation);
             this.canvas.toBlob((blob) => {
                 saveBlob(blob, `${this.state.map}.png`);
             });
@@ -286,7 +269,7 @@ export default class Atlas extends Component {
                     let x = col * canvasWidth;
                     let y = row * canvasHeight;
                     this.setPan(-bounds[0] - x, -bounds[1] - y);
-                    this.state.save.render(this.canvas.width, this.canvas.height, this.state.pan.x, this.state.pan.y, this.state.scale, this.state.rotation, this.state.minz, this.state.maxz);
+                    this.state.save.render(this.canvas.width, this.canvas.height, this.state.pan.x, this.state.pan.y, this.state.scale, this.state.rotation);
                     this.canvas.toBlob((blob) => {
                         blob.arrayBuffer().then(buff => {
                             let u8buff = new Uint8Array(buff);
