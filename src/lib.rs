@@ -1,4 +1,6 @@
 extern crate brickadia;
+extern crate brdb;
+extern crate serde_json;
 extern crate js_sys;
 extern crate web_sys;
 extern crate image;
@@ -9,6 +11,7 @@ mod webgl;
 mod graphics;
 mod image_combiner;
 mod bricks;
+mod world_load;
 mod process;
 mod color;
 mod util;

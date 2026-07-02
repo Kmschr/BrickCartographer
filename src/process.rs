@@ -24,6 +24,17 @@ const CHUNK_INDEX_LIMIT: usize = 3_000_000;
 const CULL_CELL_SIZE: i32 = 5;
 const CULL_MAX_GRID_DIM: i32 = 4096;
 
+// A parsed save in legacy .brs terms, before filtering/transforming.
+// Bricks from newer formats are converted into this shape so the rest of
+// the pipeline (sizing, geometry, culling) stays format-agnostic.
+pub struct RawSave {
+    pub bricks: Vec<Brick>,
+    pub brick_assets: Vec<String>,
+    pub colors: Vec<Color>,
+    pub description: String,
+    pub brick_count: i32,
+}
+
 #[derive(PartialEq, Eq, Hash)]
 pub struct BrickShape {
     name_index: u32,
@@ -60,30 +71,25 @@ pub struct BRSProcessor {
 #[wasm_bindgen]
 impl BRSProcessor {
     pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
-        let mut reader = match SaveReader::new(body.as_slice()) {
-            Ok(v) => v,
-            Err(_e) => return Err(JsValue::from("brickadia-rs error creating save reader"))
+        let raw = if body.starts_with(b"BRZ") {
+            crate::world_load::load_brz(&body)?
+        } else if body.starts_with(b"SQLite format 3\0") {
+            crate::world_load::load_brdb(&body)?
+        } else {
+            Self::load_brs(&body)?
         };
-        let save = match reader.read_all() {
-            Ok(v) => v,
-            Err(_e) => return Err(JsValue::from("brickadia-rs error reading file"))
-        };
-        
-        let brick_assets = save.header2.brick_assets;
-        let mut bricks: Vec<Brick> = save.bricks.into_iter()
+
+        let RawSave { bricks, brick_assets, colors, description, brick_count } = raw;
+
+        let mut bricks: Vec<Brick> = bricks.into_iter()
             .filter_map(|b| util::filter_and_transform_brick(b, &brick_assets))
             .collect();
         bricks.sort_unstable_by_key(|b| util::top_surface(b));
-    
-         // Get color list as rgba 0.0-1.0 f32
-        let mut colors: Vec<Color> = save.header2.colors.iter().map(convert_color).collect();
-        for color in &mut colors {
-            color.convert_to_srgb();
+
+        if bricks.is_empty() {
+            return Err(JsValue::from("save contains no visible bricks"));
         }
-    
-        let description: String = save.header1.description;
-        let brick_count: i32 = save.header1.brick_count as i32;
-    
+
         let centroid = util::calculate_centroid(&bricks);
         let bounds = util::calculate_bounds(&bricks, centroid);
 
@@ -288,6 +294,31 @@ impl BRSProcessor {
 }
 
 impl BRSProcessor {
+    fn load_brs(body: &[u8]) -> Result<RawSave, JsValue> {
+        let mut reader = match SaveReader::new(body) {
+            Ok(v) => v,
+            Err(_e) => return Err(JsValue::from("brickadia-rs error creating save reader"))
+        };
+        let save = match reader.read_all() {
+            Ok(v) => v,
+            Err(_e) => return Err(JsValue::from("brickadia-rs error reading file"))
+        };
+
+        // Get color list as rgba 0.0-1.0 f32
+        let mut colors: Vec<Color> = save.header2.colors.iter().map(convert_color).collect();
+        for color in &mut colors {
+            color.convert_to_srgb();
+        }
+
+        Ok(RawSave {
+            bricks: save.bricks,
+            brick_assets: save.header2.brick_assets,
+            colors,
+            description: save.header1.description,
+            brick_count: save.header1.brick_count as i32,
+        })
+    }
+
     fn height_extent(&self) -> (i32, i32) {
         let mut min_height: i32 = std::i32::MAX;
         let mut max_height: i32 = std::i32::MIN;
