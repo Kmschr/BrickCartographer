@@ -28,6 +28,7 @@ export default class Atlas extends Component {
         this.toggleHeightmap = this.toggleHeightmap.bind(this);
         this.state = {
             save: null,
+            loading: false,
             fullscreen: false,
             showOutlines: false,
             fillBricks: true,
@@ -94,8 +95,23 @@ export default class Atlas extends Component {
                 <a className="github-button" href="https://github.com/Kmschr/BrickCartographer" target="_blank" rel="noopener noreferrer">{GITHUB}</a>
                 <input type='file' name='file' id='file' onChange={(e) => this.handleFileSelected(e)}/>
                 { /*<SaveInfo map={this.state.map} save={this.state.save} /> */ }
+                {this.state.loading &&
+                    <div className="loading-overlay">
+                        <div className="loading-spinner"/>
+                    </div>
+                }
             </div>
         )
+    }
+
+    withLoading(task) {
+        this.setState({ loading: true }, () => {
+            requestAnimationFrame(() => setTimeout(() => {
+                Promise.resolve()
+                    .then(task)
+                    .finally(() => this.setState({ loading: false }));
+            }, 0));
+        });
     }
 
     redraw() {
@@ -197,23 +213,27 @@ export default class Atlas extends Component {
         xhr.onreadystatechange = _ => {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 200) {
-                    let buff = xhr.response;                    
+                    let buff = xhr.response;
                     let u8buff = new Uint8Array(buff);
-                    wasm.then(rust => rust.loadFile(u8buff)).catch((error) => {
-                            this.setState({
-                                fileError: true,
-                                fileErrorMsg: error
-                            });
-                        })
-                        .then(save => {                            
-                            this.setState({
-                                save: save,
-                                map: "ACM City"
-                            }, () => {
-                                this.processSave(true);
-                            });
-                        });
-                }  
+                    this.withLoading(() =>
+                        wasm.then(rust => rust.loadFile(u8buff))
+                            .then(save => new Promise(resolve => {
+                                this.setState({
+                                    save: save,
+                                    map: "ACM City"
+                                }, () => {
+                                    this.processSave(true);
+                                    resolve();
+                                });
+                            }))
+                            .catch((error) => {
+                                this.setState({
+                                    fileError: true,
+                                    fileErrorMsg: error
+                                });
+                            })
+                    );
+                }
             }
         }
         xhr.send();
@@ -319,7 +339,7 @@ export default class Atlas extends Component {
                 showOutlines: !this.state.showOutlines,
                 showHeightmap: false
             }, () => {
-                this.processSave();
+                this.withLoading(() => this.processSave());
             });
         }
     }
@@ -330,7 +350,7 @@ export default class Atlas extends Component {
                 fillBricks: !this.state.fillBricks,
                 showHeightmap: false,
             }, () => {
-                this.processSave();
+                this.withLoading(() => this.processSave());
             })
         }
     }
@@ -342,7 +362,7 @@ export default class Atlas extends Component {
                 fillBricks: false,
                 showOutlines: false
             }, () => {
-                this.processSave();
+                this.withLoading(() => this.processSave());
             })
         }
     }
@@ -382,30 +402,29 @@ export default class Atlas extends Component {
     handleFileSelected(event) {
         let file = event.target.files[0];
         if (file) {
-            this.canvas.style.cursor = "wait";
-            this.loadFileWASM(file);
+            this.withLoading(() => this.loadFileWASM(file));
         }
     }
 
     loadFileWASM(file) {
         const filename = file.name.replace(/\.[^/.]+$/, "")
-        file.arrayBuffer()
+        return file.arrayBuffer()
             .then(buff => new Uint8Array(buff))
-            .then(buff =>
-                wasm.then(rust => rust.loadFile(buff)).catch((error) => {
-                    console.log(error)
-                    this.setState({
-                        fileError: true,
-                        fileErrorMsg: error
-                    });
-                })
-            )
-            .then(save => {
+            .then(buff => wasm.then(rust => rust.loadFile(buff)))
+            .then(save => new Promise(resolve => {
                 this.setState({
                     save: save,
                     map: filename
                 }, () => {
                     this.processSave(true);
+                    resolve();
+                });
+            }))
+            .catch((error) => {
+                console.log(error)
+                this.setState({
+                    fileError: true,
+                    fileErrorMsg: error
                 });
             });
     }
