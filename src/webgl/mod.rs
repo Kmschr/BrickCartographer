@@ -26,16 +26,9 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
         }
     };
 
-    // No depth testing or stenciling is done, so skip allocating those buffers.
-    // Antialiasing is disabled to avoid the multisampled backbuffer's VRAM cost.
-    let context_options = js_sys::Object::new();
-    js_sys::Reflect::set(&context_options, &"depth".into(), &false.into())?;
-    js_sys::Reflect::set(&context_options, &"stencil".into(), &false.into())?;
-    js_sys::Reflect::set(&context_options, &"antialias".into(), &false.into())?;
-
-    let context = match canvas.get_context_with_context_options("webgl", &context_options) {
+    let context = match canvas.get_context("webgl") {
         Ok(v) => v,
-        Err(_e) => match canvas.get_context_with_context_options("experimental-webgl", &context_options) {
+        Err(_e) => match canvas.get_context("webgl-experimental") {
             Ok(v) => v,
             Err(_e) => {
                 error("RUST ERROR: No WebGl support by browser");
@@ -43,7 +36,7 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
             }
         }
     };
-        
+
     let gl = match context.unwrap().dyn_into::<WebGlRenderingContext>() {
         Ok(v) => v,
         Err(_e) => {
