@@ -10,12 +10,11 @@ license = "GNU"
 crate-type = ["cdylib"]
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = false
+wasm-opt = ['-Oz']
 
 [dependencies]
 brickadia = "0.1.26"
-# TODO: switch to crates.io once 0.6.0 is published
-brdb = { git = "https://github.com/brickadia-community/brdb.git", rev = "9a34effb780ebe8e2f2e7d86e015f9f3bec3e6fc", default-features = false, features = ["brz", "wasm"] }
+brdb = { git = "https://github.com/brickadia-community/brdb.git", default-features = false, features = ["brz", "wasm"] }
 serde_json = "1.0"
 wasm-bindgen = "0.2.60"
 js-sys = "0.3.37"
@@ -26,9 +25,7 @@ console_error_panic_hook = "0.1.6"
 [dependencies.web-sys]
 version = "0.3.4"
 features = [
-  'CanvasRenderingContext2d',
   'Document',
-  'DomTokenList',
   'Element',
   'HtmlCanvasElement',
   'HtmlCollection',
