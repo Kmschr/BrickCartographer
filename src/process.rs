@@ -142,6 +142,12 @@ impl BRSProcessor {
     pub fn brick_count(&self) -> i32 {
         self.brick_count
     }
+    pub fn centroid(&self) -> Array {
+        let centroid = Array::new();
+        centroid.push(&JsValue::from(self.centroid.0));
+        centroid.push(&JsValue::from(self.centroid.1));
+        centroid
+    }
     pub fn bounds(&self) -> Array {
         let x1 = JsValue::from(self.bounds.0);
         let y1 = JsValue::from(self.bounds.1);
