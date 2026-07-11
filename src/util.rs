@@ -104,11 +104,7 @@ pub fn calculate_bounds(bricks: &[Brick], (x, y): (i32, i32)) -> (i32, i32, i32,
 }
 
 pub fn top_surface(brick: &Brick) -> i32 {
-    let size = match brick.size {
-        Size::Empty => (0, 0, 0),
-        Size::Procedural(x, y, z) => (x, y, z)
-    };
-    brick.position.2 + size.2 as i32
+    brick.position.2 + sizer(brick).2 as i32
 }
 
 pub fn sizer(brick: &Brick) -> (u32, u32, u32) {
@@ -117,48 +113,3 @@ pub fn sizer(brick: &Brick) -> (u32, u32, u32) {
         Size::Procedural(x, y, z) => (x, y, z)
     }
 }
-
-/*
-pub fn find_furthest_brick((x, y): (i32, i32), bricks: &[Brick]) -> Brick {
-    let mut furthest_distance: u32 = 0;
-    let mut furthest_brick: Brick = bricks[0].clone();
-    for brick in bricks {
-        let x_dist: u32 = (brick.position.0 - x).abs() as u32;
-        let y_dist: u32 = (brick.position.1 - y).abs() as u32;
-
-        if x_dist > furthest_distance {
-            furthest_distance = x_dist;
-            furthest_brick = brick.clone();
-        }
-        if y_dist > furthest_distance {
-            furthest_distance = y_dist;
-            furthest_brick = brick.clone();
-        }
-    }
-    furthest_brick
-}
-
-#[derive(Debug)]
-pub struct Player {
-    pub name: String,
-    pub brick_count: u32
-}
-
-pub fn brick_count_by_player(bricks: &[Brick], owners: &[User]) -> Vec<Player> {
-    let mut players: Vec<Player> = Vec::new();
-    for user in owners {
-        players.push(Player {
-            name: user.name.clone(),
-            brick_count: 0
-        });
-    }
-    for brick in bricks {
-        let owner_index = match brick.owner_index {
-            None => 0usize,
-            Some(x) => x as usize,
-        };
-        players[owner_index].brick_count += 1;
-    }
-    players
-}
-*/

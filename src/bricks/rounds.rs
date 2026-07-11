@@ -1,5 +1,5 @@
 use brickadia::save::{Brick, Direction};
-use bricks::primitives::*;
+use super::primitives::*;
 
 pub fn round(brick: &Brick, shape: &Shape) -> Vec<f32> {
     match brick.direction {

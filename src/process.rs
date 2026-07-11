@@ -12,7 +12,7 @@ use web_sys::{WebGlBuffer, WebGlRenderingContext, WebGlUniformLocation};
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
 use brickadia::read::SaveReader;
-use brickadia::save::{Brick, Rotation, Direction, BrickColor, Size};
+use brickadia::save::{Brick, Rotation, Direction, BrickColor};
 
 // Geometry is built and uploaded to the GPU in chunks so wasm memory stays
 // bounded no matter the build size. Also keeps every draw call well under
@@ -93,23 +93,6 @@ impl BRSProcessor {
         let centroid = util::calculate_centroid(&bricks);
         let bounds = util::calculate_bounds(&bricks, centroid);
 
-        /*
-        let furthest_brick = util::find_furthest_brick(centroid, &bricks);
-        let furthest_brick_owner_index = match furthest_brick.owner_index {
-            None => 0usize,
-            Some(x) => x as usize
-        };
-
-        let mut players = util::brick_count_by_player(&bricks, &reader.brick_owners());
-        players.sort_unstable_by_key(|p| p.brick_count);
-
-        log(&format!("{:?}", bounds));
-        log(&format!("{:?}", furthest_brick));
-       // log(&format!("{:?}", reader.brick_owners()));
-        log(&reader.brick_owners()[furthest_brick_owner_index].name);
-       // log(&format!("{:?}", players));
-       */
-    
         let (gl, matrix_uniform_location, position_attribute_location, color_attribute_location) = webgl::get_rendering_context()?;
 
         let mut processor = BRSProcessor {
@@ -467,10 +450,7 @@ impl BRSProcessor {
         let mut unique_shapes = HashSet::<BrickShape>::new();
         let mut copy_count = 0;
         for i in (0..self.bricks.len()).rev() {
-            let size = match self.bricks[i].size {
-                Size::Procedural(x, y, z) => (x, y, z),
-                Size::Empty => (0, 0, 0),
-            };
+            let size = util::sizer(&self.bricks[i]);
             let brick_shape = BrickShape {
                 name_index: self.bricks[i].asset_name_index,
                 position: (self.bricks[i].position.0, self.bricks[i].position.1),

@@ -12,7 +12,7 @@ pub struct ImageCombiner {
 impl Default for ImageCombiner {
     fn default() -> ImageCombiner {
         ImageCombiner {
-            images: vec![Vec::new(); 1000],
+            images: Vec::new(),
             width: 800,
             height: 600,
         }
@@ -23,7 +23,11 @@ impl Default for ImageCombiner {
 impl ImageCombiner {
     #[wasm_bindgen(js_name = pushImage)]
     pub fn add_image(&mut self, image: Vec<u8>, index: i32) {
-        self.images[index as usize] = image;
+        let index = index as usize;
+        if index >= self.images.len() {
+            self.images.resize(index + 1, Vec::new());
+        }
+        self.images[index] = image;
     }
 
     #[wasm_bindgen(js_name = setSize)]
@@ -36,12 +40,6 @@ impl ImageCombiner {
     pub fn combine_images(&self, rows: u32, cols: u32) -> Result<Vec<u8>, JsValue> {
         let image_width = cols * self.width;
         let image_height = rows * self.height;
-
-        /*
-        log(&format!("Rows: {}, Cols: {}", rows, cols));
-        log(&format!("Width: {}, Height: {}", self.width, self.height));
-        log(&format!("Image Size: {}, {}", image_width, image_height));
-        */
 
         let mut img: RgbaImage = ImageBuffer::new(image_width, image_height);
 

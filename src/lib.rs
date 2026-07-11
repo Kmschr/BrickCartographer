@@ -18,8 +18,8 @@ mod util;
 mod m3;
 
 use wasm_bindgen::prelude::*;
-use process::BRSProcessor;
-use image_combiner::ImageCombiner;
+use crate::process::BRSProcessor;
+use crate::image_combiner::ImageCombiner;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -33,6 +33,7 @@ extern "C" {
 
 #[wasm_bindgen(js_name = loadFile)]
 pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
+    console_error_panic_hook::set_once();
     BRSProcessor::load_file(body)
 }
 

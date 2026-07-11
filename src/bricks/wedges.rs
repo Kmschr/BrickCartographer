@@ -1,5 +1,5 @@
 use brickadia::save::{Brick, Rotation, Direction};
-use bricks::primitives::*;
+use super::primitives::*;
 
 pub fn side_wedge(brick: &Brick, shape: &Shape) -> Vec<f32> {
     match brick.direction {

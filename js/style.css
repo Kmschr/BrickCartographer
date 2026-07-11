@@ -1,7 +1,26 @@
-/* 
+/*
 Brickadia UI Standard:
 https://brickadia.com/blog/content/images/size/w1000/2020/08/image-15.png
 */
+
+/* Reset formerly provided by Bootstrap's reboot. Without margin:0 the default
+   8px body margin makes width:100% overflow and spawns scrollbars, shifting and
+   clipping the full-screen canvas. */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#root, #ui-container {
+  width: 100%;
+  height: 100%;
+}
 
 /* make map canvas and its take entire contents of screen */
 .map-canvas {

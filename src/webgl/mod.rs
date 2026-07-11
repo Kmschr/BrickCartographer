@@ -26,9 +26,15 @@ pub fn get_rendering_context() -> Result<(WebGlRenderingContext, WebGlUniformLoc
         }
     };
 
-    let context = match canvas.get_context("webgl") {
+    // preserveDrawingBuffer keeps the last frame readable after compositing, so
+    // the "Save Entire Map" tiles survive drawImage into the stitch canvas.
+    // Without it Firefox hands back a blank buffer (Chrome happens to tolerate it).
+    let options = js_sys::Object::new();
+    js_sys::Reflect::set(&options, &JsValue::from_str("preserveDrawingBuffer"), &JsValue::TRUE).unwrap();
+
+    let context = match canvas.get_context_with_context_options("webgl", &options) {
         Ok(v) => v,
-        Err(_e) => match canvas.get_context("webgl-experimental") {
+        Err(_e) => match canvas.get_context_with_context_options("webgl-experimental", &options) {
             Ok(v) => v,
             Err(_e) => {
                 error("RUST ERROR: No WebGl support by browser");
