@@ -1,0 +1,16 @@
+[package]
+name = "brick-cartographer-core"
+description = "Save parsing and wgpu rendering for mapping Brickadia saves"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+brickadia.workspace = true
+brdb.workspace = true
+serde_json.workspace = true
+image.workspace = true
+wgpu.workspace = true
+futures-channel.workspace = true

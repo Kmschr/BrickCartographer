@@ -1,80 +1,22 @@
-[package]
-name = "brick_cartographer"
-version = "0.2.1"
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/wasm", "crates/cli"]
+
+[workspace.package]
+version = "0.3.0"
 edition = "2021"
 authors = ["Kmschr <Kmschr@gmail.com>"]
-description = "Website/WASM to map brickadia saves"
 repository = "https://github.com/Kmschr/BrickCartographer"
-license = "GNU"
+license = "GPL-3.0-only"
 
-[lib]
-crate-type = ["cdylib"]
-
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ['-Oz']
-
-[dependencies]
+[workspace.dependencies]
+brick-cartographer-core = { path = "crates/core" }
 brickadia = "0.1.26"
 brdb = { git = "https://github.com/brickadia-community/brdb.git", default-features = false, features = ["brz", "wasm"] }
 serde_json = "1.0"
-wasm-bindgen = "0.2.126"
-wasm-bindgen-futures = "0.4.58"
-js-sys = "0.3.103"
-chrono = { version = "0.4.9", features = ["wasmbind"] }
 image = { version = "0.23.4", default-features = false, features = ["png"] }
-console_error_panic_hook = "0.1.6"
+wgpu = { version = "30", default-features = false, features = ["wgsl", "std"] }
+futures-channel = "0.3"
 
-# Pinned exactly: the WebGPU bindings are unstable APIs, exempt from semver
-[dependencies.web-sys]
-version = "=0.3.103"
-features = [
-  'Document',
-  'Element',
-  'HtmlCanvasElement',
-  'HtmlCollection',
-  'Navigator',
-  'Window',
-  'Gpu',
-  'GpuAdapter',
-  'GpuAutoLayoutMode',
-  'GpuBindGroup',
-  'GpuBindGroupDescriptor',
-  'GpuBindGroupEntry',
-  'GpuBindGroupLayout',
-  'GpuBuffer',
-  'GpuBufferBinding',
-  'GpuBufferDescriptor',
-  'GpuCanvasAlphaMode',
-  'GpuCanvasConfiguration',
-  'GpuCanvasContext',
-  'GpuColorTargetState',
-  'GpuCommandBuffer',
-  'GpuCommandEncoder',
-  'GpuDevice',
-  'GpuFragmentState',
-  'GpuLoadOp',
-  'GpuMultisampleState',
-  'GpuQueue',
-  'GpuRenderPassColorAttachment',
-  'GpuRenderPassDescriptor',
-  'GpuRenderPassEncoder',
-  'GpuRenderPipeline',
-  'GpuRenderPipelineDescriptor',
-  'GpuShaderModule',
-  'GpuShaderModuleDescriptor',
-  'GpuStoreOp',
-  'GpuTexelCopyBufferInfo',
-  'GpuTexelCopyTextureInfo',
-  'GpuTexture',
-  'GpuTextureDescriptor',
-  'GpuTextureFormat',
-  'GpuTextureView',
-  'GpuVertexAttribute',
-  'GpuVertexBufferLayout',
-  'GpuVertexFormat',
-  'GpuVertexState',
-  'GpuIndexFormat',
-  'gpu_buffer_usage',
-  'gpu_map_mode',
-  'gpu_texture_usage',
-]
+[profile.release]
+opt-level = 3

@@ -10,6 +10,18 @@ const MAX_SCALE = 20;
 const MIN_SCALE = 0.01;
 const DEFAULT_PAN = { x: 0, y: 0 };
 const SCROLL_INTENSITY = 1.2;
+const WEBGPU_NOTICE_DISMISSED = "webgpu-notice-dismissed";
+
+// navigator.gpu can exist while no adapter is actually obtainable, which is
+// why the renderer probes for a real adapter rather than trusting the object
+async function webGPUAvailable() {
+    if (!navigator.gpu) return false;
+    try {
+        return !!(await navigator.gpu.requestAdapter());
+    } catch {
+        return false;
+    }
+}
 
 export default class Atlas {
     constructor(root) {
@@ -28,6 +40,7 @@ export default class Atlas {
 
         this.buildDom(root);
         this.attachEvents();
+        this.checkWebGPU();
 
         wasm.then(rust => console.log("v" + rust.getVersion()));
         wasm.then(rust => rust.getImageCombiner()).then(ic => this.imageCombiner = ic);
@@ -63,12 +76,17 @@ export default class Atlas {
                 <a class="github-button" href="https://github.com/Kmschr/BrickCartographer" target="_blank" rel="noopener noreferrer">${GITHUB}</a>
                 <input type="file" name="file" id="file" />
                 <div class="loading-overlay" style="display:none"><div class="loading-spinner"></div></div>
+                <div class="webgpu-notice" style="display:none">
+                    <span class="webgpu-notice-text"></span>
+                    <button class="webgpu-notice-dismiss" title="Dismiss">&times;</button>
+                </div>
             </div>`;
 
         const $ = sel => root.querySelector(sel);
         this.canvas = $(".map-canvas");
         this.fileInput = $("#file");
         this.loadingOverlay = $(".loading-overlay");
+        this.webgpuNotice = $(".webgpu-notice");
         this.borderButton = $(".border-button");
         this.fillButton = $(".fill-button");
         this.heightmapButton = $(".heightmap-button");
@@ -103,6 +121,26 @@ export default class Atlas {
         $(".zoom-photo-button").addEventListener("click", () => this.takeHDScreenshot(10));
         $(".load-button").addEventListener("click", () => this.clickFileInput());
         this.fileInput.addEventListener("change", e => this.handleFileSelected(e));
+        $(".webgpu-notice-dismiss").addEventListener("click", () => this.dismissWebGPUNotice());
+    }
+
+    // The renderer falls back to WebGL2 wherever WebGPU is missing, so the map
+    // still works — this only tells Firefox users the faster path exists, since
+    // Firefox still ships WebGPU disabled by default outside Windows.
+    async checkWebGPU() {
+        if (localStorage.getItem(WEBGPU_NOTICE_DISMISSED)) return;
+        if (await webGPUAvailable()) return;
+        if (!navigator.userAgent.includes("Firefox")) return;
+
+        this.webgpuNotice.querySelector(".webgpu-notice-text").innerHTML =
+            'Running on WebGL. For faster rendering, enable WebGPU in Firefox: open ' +
+            '<code>about:config</code> and set <code>dom.webgpu.enabled</code> to <code>true</code>.';
+        this.webgpuNotice.style.display = "flex";
+    }
+
+    dismissWebGPUNotice() {
+        this.webgpuNotice.style.display = "none";
+        localStorage.setItem(WEBGPU_NOTICE_DISMISSED, "1");
     }
 
     setLoading(loading) {

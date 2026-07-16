@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::webgpu::VERTEX_STRIDE;
+// Bytes per vertex: x (f32), y (f32), rgba (4 x u8)
+pub const VERTEX_STRIDE: i32 = 12;
 
 // Appends a shape's triangle-list positions as indexed geometry, deduplicating
 // vertices within the shape by exact bit pattern. Vertices are interleaved as

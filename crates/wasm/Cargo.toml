@@ -1,0 +1,34 @@
+# Package name kept as brick_cartographer so wasm-pack's pkg/ output keeps
+# the module paths the JS frontend imports
+[package]
+name = "brick_cartographer"
+description = "Website/WASM to map brickadia saves"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz']
+
+[dependencies]
+brick-cartographer-core.workspace = true
+wgpu = { workspace = true, features = ["webgpu", "webgl", "web"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+console_error_panic_hook = "0.1.6"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  'Document',
+  'Element',
+  'HtmlCanvasElement',
+  'HtmlCollection',
+  'Window',
+]

@@ -91,6 +91,49 @@ html, body {
   to { transform: rotate(360deg); }
 }
 
+/* Notice shown when falling back to WebGL on browsers that can enable WebGPU */
+.webgpu-notice {
+  position: absolute;
+  bottom: 16px;
+  left: 72px;
+  max-width: 460px;
+  padding: 10px 12px;
+  background-color: #263F61;
+  color: #A7BBCE;
+  border-left: 3px solid #5DA93D;
+  border-radius: 3px;
+  box-shadow: 0px 3px 15px 3px rgba(0,0,0,0.5);
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  z-index: 900;
+}
+
+.webgpu-notice code {
+  background-color: #131D30;
+  border-radius: 2px;
+  padding: 1px 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.webgpu-notice-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #A7BBCE;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.webgpu-notice-dismiss:hover {
+  color: #FFFFFF;
+}
+
 /* Panel on left that holds all the buttons */
 /* Colored as Secondary Background*/
 .button-panel {

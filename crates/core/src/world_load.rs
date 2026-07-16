@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use wasm_bindgen::prelude::*;
 use brickadia::save::{Brick, BrickColor, Color, Direction, Rotation, Size};
 use brdb::{Brdb, BrFsReader, BrReader, BrickType, Brz, IntoReader};
 
-use crate::process::RawSave;
+use crate::save::RawSave;
 
 const MAIN_GRID: usize = 1;
 
@@ -12,21 +11,21 @@ const MAIN_GRID: usize = 1;
 // Older ones stored linear values that have to be converted for display.
 const SRGB_COLOR_CHANGELIST: u32 = 13911;
 
-pub fn load_brz(body: &[u8]) -> Result<RawSave, JsValue> {
+pub fn load_brz(body: &[u8]) -> Result<RawSave, String> {
     let brz = Brz::read_slice(body)
-        .map_err(|e| JsValue::from(format!("brdb error reading brz archive: {}", e)))?;
+        .map_err(|e| format!("brdb error reading brz archive: {}", e))?;
     load_world(&brz.into_reader())
 }
 
-pub fn load_brdb(body: &[u8]) -> Result<RawSave, JsValue> {
+pub fn load_brdb(body: &[u8]) -> Result<RawSave, String> {
     let db = Brdb::from_bytes(body)
-        .map_err(|e| JsValue::from(format!("brdb error opening database: {}", e)))?;
+        .map_err(|e| format!("brdb error opening database: {}", e))?;
     load_world(&db.into_reader())
 }
 
-fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, JsValue> {
+fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, String> {
     let global_data = reader.global_data()
-        .map_err(|e| JsValue::from(format!("brdb error reading global data: {}", e)))?;
+        .map_err(|e| format!("brdb error reading global data: {}", e))?;
 
     let bundle = reader.bundle_json().ok();
     let linear_colors = bundle.as_ref()
@@ -40,15 +39,15 @@ fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, JsValue> {
     // Dynamic brick grids (vehicles etc.) are positioned by entity transforms
     // the renderer doesn't model, so only the main grid is mapped
     let chunks = reader.brick_chunk_index(MAIN_GRID)
-        .map_err(|e| JsValue::from(format!("brdb error reading chunk index: {}", e)))?;
+        .map_err(|e| format!("brdb error reading chunk index: {}", e))?;
 
     for chunk in chunks {
         let soa = reader.brick_chunk_soa(MAIN_GRID, chunk.index)
-            .map_err(|e| JsValue::from(format!("brdb error reading chunk {}: {}", chunk.index, e)))?;
+            .map_err(|e| format!("brdb error reading chunk {}: {}", chunk.index, e))?;
 
         for brick in soa.iter_bricks(chunk.index, global_data.clone()) {
             let brick = brick
-                .map_err(|e| JsValue::from(format!("brdb error reading brick in chunk {}: {}", chunk.index, e)))?;
+                .map_err(|e| format!("brdb error reading brick in chunk {}: {}", chunk.index, e))?;
 
             let name = brick.asset.asset().to_string();
             let next_index = brick_assets.len() as u32;

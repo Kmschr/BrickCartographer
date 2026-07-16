@@ -1,0 +1,18 @@
+[package]
+name = "brick-cartographer-cli"
+description = "Render PNG maps of Brickadia saves from the command line"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "brick-cartographer"
+path = "src/main.rs"
+
+[dependencies]
+brick-cartographer-core.workspace = true
+wgpu = { workspace = true, features = ["vulkan", "gles", "metal", "dx12"] }
+clap = { version = "4", features = ["derive"] }
+pollster = "0.4"
