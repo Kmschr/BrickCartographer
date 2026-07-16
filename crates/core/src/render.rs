@@ -69,6 +69,10 @@ fn batch_visible(matrix: &[f32; 9], bounds: (f32, f32, f32, f32)) -> bool {
 }
 
 pub struct Renderer {
+    // Kept alive deliberately: on the browser backend, dropping the Instance
+    // aborts every later buffer mapAsync with "A valid external Instance
+    // reference no longer exists", killing screenshot readbacks.
+    _instance: wgpu::Instance,
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::RenderPipeline,
@@ -259,6 +263,7 @@ impl Renderer {
         });
 
         Ok(Renderer {
+            _instance: instance,
             device,
             queue,
             pipeline,
@@ -477,16 +482,16 @@ impl Renderer {
         Ok(())
     }
 
-    /// Renders offscreen at the given size and returns a future resolving to
-    /// tightly-packed RGBA pixels. All GPU work is submitted before this
-    /// returns; the future owns its resources ('static), so it can outlive
-    /// the renderer borrow — e.g. handed to JS as a Promise.
+    /// Renders offscreen at the given size and returns a [`PixelReadback`]
+    /// resolving to tightly-packed RGBA pixels. All GPU work is submitted
+    /// before this returns; the readback owns its resources, so it can
+    /// outlive the renderer borrow.
     pub fn render_to_pixels(
         &self,
         width: u32,
         height: u32,
         matrix: &[f32; 9],
-    ) -> Result<impl std::future::Future<Output = Result<Vec<u8>, String>> + 'static, String> {
+    ) -> Result<PixelReadback, String> {
         if width == 0 || height == 0 {
             return Err(format!("invalid render size {}x{}", width, height));
         }
@@ -562,44 +567,83 @@ impl Renderer {
                 let _ = sender.send(result);
             });
 
-        // Native: block until the GPU work and map complete. Web: the browser
-        // drives completion; a non-blocking poll flushes the WebGL backend.
-        #[cfg(not(target_arch = "wasm32"))]
+        Ok(PixelReadback {
+            device: self.device.clone(),
+            receiver,
+            buffer: readback_buffer,
+            width,
+            height,
+            bytes_per_row,
+            format: self.format,
+        })
+    }
+}
+
+/// An in-flight offscreen readback. On the WebGL backend, mapping callbacks
+/// only fire while the device is polled, so consumers that can't block must
+/// pump: call [`poll`](Self::poll) then [`try_finish`](Self::try_finish),
+/// yielding to the event loop between rounds. Native code just calls
+/// [`finish_blocking`](Self::finish_blocking).
+pub struct PixelReadback {
+    device: wgpu::Device,
+    receiver: futures_channel::oneshot::Receiver<Result<(), wgpu::BufferAsyncError>>,
+    buffer: wgpu::Buffer,
+    width: u32,
+    height: u32,
+    bytes_per_row: u32,
+    format: wgpu::TextureFormat,
+}
+
+impl PixelReadback {
+    /// Gives the backend a chance to complete the mapping.
+    pub fn poll(&self) {
+        let _ = self.device.poll(wgpu::PollType::Poll);
+    }
+
+    /// Non-blocking check: `Some` once the mapping resolved (with the pixels
+    /// or the error), `None` while still pending.
+    pub fn try_finish(&mut self) -> Option<Result<Vec<u8>, String>> {
+        match self.receiver.try_recv() {
+            Ok(Some(Ok(()))) => Some(self.read_pixels()),
+            Ok(Some(Err(e))) => Some(Err(format!("Error mapping readback buffer: {:?}", e))),
+            Ok(None) => None,
+            Err(_) => Some(Err("GPU readback cancelled".to_string())),
+        }
+    }
+
+    /// Blocks until the GPU work and mapping complete. Not usable on wasm.
+    pub fn finish_blocking(mut self) -> Result<Vec<u8>, String> {
         self.device
             .poll(wgpu::PollType::Wait { submission_index: None, timeout: None })
             .map_err(|e| format!("Error waiting for GPU: {:?}", e))?;
-        #[cfg(target_arch = "wasm32")]
-        let _ = self.device.poll(wgpu::PollType::Poll);
+        match self.try_finish() {
+            Some(result) => result,
+            None => Err("GPU readback did not complete".to_string()),
+        }
+    }
 
-        let format = self.format;
-        Ok(async move {
-            receiver
-                .await
-                .map_err(|_| "GPU readback cancelled".to_string())?
-                .map_err(|e| format!("Error mapping readback buffer: {:?}", e))?;
-
-            let mut pixels = Vec::with_capacity((width * height * 4) as usize);
-            {
-                let data = readback_buffer
-                    .get_mapped_range(..)
-                    .map_err(|e| format!("Error reading mapped buffer: {:?}", e))?;
-                let row_bytes = (width * 4) as usize;
-                for row in 0..height as usize {
-                    let start = row * bytes_per_row as usize;
-                    pixels.extend_from_slice(&data[start..start + row_bytes]);
-                }
+    fn read_pixels(&self) -> Result<Vec<u8>, String> {
+        let mut pixels = Vec::with_capacity((self.width * self.height * 4) as usize);
+        {
+            let data = self.buffer
+                .get_mapped_range(..)
+                .map_err(|e| format!("Error reading mapped buffer: {:?}", e))?;
+            let row_bytes = (self.width * 4) as usize;
+            for row in 0..self.height as usize {
+                let start = row * self.bytes_per_row as usize;
+                pixels.extend_from_slice(&data[start..start + row_bytes]);
             }
-            readback_buffer.unmap();
-            readback_buffer.destroy();
+        }
+        self.buffer.unmap();
+        self.buffer.destroy();
 
-            // Swizzle to RGBA when the target format demands it
-            if format == wgpu::TextureFormat::Bgra8Unorm {
-                for px in pixels.chunks_exact_mut(4) {
-                    px.swap(0, 2);
-                }
+        // Swizzle to RGBA when the target format demands it
+        if self.format == wgpu::TextureFormat::Bgra8Unorm {
+            for px in pixels.chunks_exact_mut(4) {
+                px.swap(0, 2);
             }
+        }
 
-            Ok(pixels)
-        })
+        Ok(pixels)
     }
 }

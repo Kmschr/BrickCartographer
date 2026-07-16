@@ -1,3 +1,4 @@
+use brick_cartographer_core::render::PixelReadback;
 use brick_cartographer_core::save::{GeometryMode, GeometryState, SaveData, SaveLoading};
 use brick_cartographer_core::{Renderer, TileStitcher};
 use js_sys::Array;
@@ -172,9 +173,9 @@ impl BRSProcessor {
     // tightly-packed RGBA pixels. Used for screenshot tiles.
     #[wasm_bindgen(js_name = renderToPixels)]
     pub fn render_to_pixels(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<js_sys::Promise, JsValue> {
-        let pixels = self.render_offscreen(size_x, size_y, pan_x, pan_y, scale, rotation)?;
+        let readback = self.render_offscreen(size_x, size_y, pan_x, pan_y, scale, rotation)?;
         Ok(future_to_promise(async move {
-            let pixels = pixels.await.map_err(JsValue::from)?;
+            let pixels = await_readback(readback).await?;
             Ok(js_sys::Uint8Array::from(pixels.as_slice()).into())
         }))
     }
@@ -182,10 +183,10 @@ impl BRSProcessor {
     // Like renderToPixels, but resolves to an encoded PNG
     #[wasm_bindgen(js_name = renderToPng)]
     pub fn render_to_png(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<js_sys::Promise, JsValue> {
-        let pixels = self.render_offscreen(size_x, size_y, pan_x, pan_y, scale, rotation)?;
+        let readback = self.render_offscreen(size_x, size_y, pan_x, pan_y, scale, rotation)?;
         let (width, height) = (size_x as u32, size_y as u32);
         Ok(future_to_promise(async move {
-            let pixels = pixels.await.map_err(JsValue::from)?;
+            let pixels = await_readback(readback).await?;
             let png = brick_cartographer_core::encode_png(&pixels, width, height)
                 .map_err(JsValue::from)?;
             Ok(js_sys::Uint8Array::from(png.as_slice()).into())
@@ -200,7 +201,7 @@ impl BRSProcessor {
         pan_y: f32,
         scale: f32,
         rotation: f32,
-    ) -> Result<impl std::future::Future<Output = Result<Vec<u8>, String>> + use<>, JsValue> {
+    ) -> Result<PixelReadback, JsValue> {
         if size_x <= 0 || size_y <= 0 {
             return Err(JsValue::from("invalid render size"));
         }
@@ -209,6 +210,30 @@ impl BRSProcessor {
             .render_to_pixels(size_x as u32, size_y as u32, &matrix)
             .map_err(JsValue::from)
     }
+}
+
+// Pumps a readback to completion. The WebGL backend only completes mappings
+// while the device is polled, so poll each round trip through the event loop;
+// on WebGPU the mapping resolves through the browser and the first few
+// timeouts just pass by.
+async fn await_readback(mut readback: PixelReadback) -> Result<Vec<u8>, JsValue> {
+    loop {
+        readback.poll();
+        if let Some(result) = readback.try_finish() {
+            return result.map_err(JsValue::from);
+        }
+        sleep_ms(0).await;
+    }
+}
+
+async fn sleep_ms(ms: i32) {
+    let promise = js_sys::Promise::new(&mut |resolve, _| {
+        web_sys::window()
+            .unwrap()
+            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms)
+            .unwrap();
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
 }
 
 fn build_all(save: &SaveData, mode: GeometryMode, renderer: &mut Renderer) -> Result<GeometryState, JsValue> {

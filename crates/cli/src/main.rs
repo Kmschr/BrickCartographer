@@ -122,7 +122,7 @@ async fn render(save: &SaveData, args: &Args) -> Result<Vec<u8>, String> {
                 args.scale,
                 rotation,
             );
-            let pixels = renderer.render_to_pixels(tile_w, tile_h, &matrix)?.await?;
+            let pixels = renderer.render_to_pixels(tile_w, tile_h, &matrix)?.finish_blocking()?;
             stitcher.push_pixels(&pixels, row, col)?;
         }
     }
