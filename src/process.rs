@@ -33,6 +33,9 @@ pub struct RawSave {
     pub colors: Vec<Color>,
     pub description: String,
     pub brick_count: i32,
+    // Whether per-brick colors are stored linear and need converting to sRGB
+    // for display. Newer saves store them as sRGB already.
+    pub linear_colors: bool,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -66,6 +69,7 @@ pub struct BRSProcessor {
     colors: Vec<Color>,
     description: String,
     brick_count: i32,
+    linear_colors: bool,
 }
 
 #[wasm_bindgen]
@@ -79,7 +83,7 @@ impl BRSProcessor {
             Self::load_brs(&body)?
         };
 
-        let RawSave { bricks, brick_assets, colors, description, brick_count } = raw;
+        let RawSave { bricks, brick_assets, colors, description, brick_count, linear_colors } = raw;
 
         let mut bricks: Vec<Brick> = bricks.into_iter()
             .filter_map(|b| util::filter_and_transform_brick(b, &brick_assets))
@@ -101,6 +105,7 @@ impl BRSProcessor {
             colors,
             description,
             brick_count,
+            linear_colors,
             gl,
             matrix_uniform_location,
             position_attribute_location,
@@ -172,7 +177,9 @@ impl BRSProcessor {
                 },
                 BrickColor::Unique(color) => {
                     brick_color = convert_color(&color);
-                    brick_color.convert_to_srgb();
+                    if self.linear_colors {
+                        brick_color.convert_to_srgb();
+                    }
                 },
             }
             if draw_fills {
@@ -305,6 +312,7 @@ impl BRSProcessor {
             colors,
             description: save.header1.description,
             brick_count: save.header1.brick_count as i32,
+            linear_colors: true,
         })
     }
 

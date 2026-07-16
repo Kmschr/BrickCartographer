@@ -8,6 +8,10 @@ use crate::process::RawSave;
 
 const MAIN_GRID: usize = 1;
 
+// Saves written by CL13911 and later store brick colors already in sRGB.
+// Older ones stored linear values that have to be converted for display.
+const SRGB_COLOR_CHANGELIST: u32 = 13911;
+
 pub fn load_brz(body: &[u8]) -> Result<RawSave, JsValue> {
     let brz = Brz::read_slice(body)
         .map_err(|e| JsValue::from(format!("brdb error reading brz archive: {}", e)))?;
@@ -23,6 +27,11 @@ pub fn load_brdb(body: &[u8]) -> Result<RawSave, JsValue> {
 fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, JsValue> {
     let global_data = reader.global_data()
         .map_err(|e| JsValue::from(format!("brdb error reading global data: {}", e)))?;
+
+    let bundle = reader.bundle_json().ok();
+    let linear_colors = bundle.as_ref()
+        .and_then(|b| parse_changelist(&b.game_version))
+        .is_some_and(|cl| cl < SRGB_COLOR_CHANGELIST);
 
     let mut brick_assets: Vec<String> = Vec::new();
     let mut asset_indices: HashMap<String, u32> = HashMap::new();
@@ -78,16 +87,20 @@ fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, JsValue> {
         bricks,
         brick_assets,
         colors: Vec::new(),
-        description: read_description(reader),
+        description: bundle.map(|b| b.description).unwrap_or_default(),
         brick_count,
+        linear_colors,
     })
 }
 
-fn read_description<T: BrFsReader>(reader: &BrReader<T>) -> String {
-    reader.read_file("Meta/Bundle.json").ok()
-        .and_then(|data| serde_json::from_slice::<serde_json::Value>(&data).ok())
-        .and_then(|json| json.get("description").and_then(|d| d.as_str()).map(String::from))
-        .unwrap_or_default()
+// Bundle.json game versions look like "CL13911". Missing, unparsable, and the
+// "CL0" placeholder tooling writes all mean "unknown", which is treated as
+// current rather than assuming an ancient save.
+fn parse_changelist(game_version: &str) -> Option<u32> {
+    match game_version.strip_prefix("CL")?.parse().ok()? {
+        0 => None,
+        cl => Some(cl),
+    }
 }
 
 fn convert_direction(direction: brdb::Direction) -> Direction {
