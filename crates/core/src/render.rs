@@ -36,10 +36,36 @@ const SHADER_CODE: &str = r#"
     }
 "#;
 
-struct Chunk {
+struct Batch {
+    // Draw-order key; batches render in ascending key order (map layers,
+    // bottom first). Ties keep upload order.
+    key: i32,
+    // World-space xy AABB of the contained geometry, for viewport culling
+    bounds: (f32, f32, f32, f32),
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
+}
+
+// Whether any part of the AABB can land inside clip space under the (affine)
+// view transform: reject only when all four corners fall past one clip edge.
+fn batch_visible(matrix: &[f32; 9], bounds: (f32, f32, f32, f32)) -> bool {
+    let corners = [
+        (bounds.0, bounds.1),
+        (bounds.2, bounds.1),
+        (bounds.0, bounds.3),
+        (bounds.2, bounds.3),
+    ];
+    let clip = corners.map(|(x, y)| {
+        (
+            matrix[0] * x + matrix[3] * y + matrix[6],
+            matrix[1] * x + matrix[4] * y + matrix[7],
+        )
+    });
+    !(clip.iter().all(|c| c.0 < -1.0)
+        || clip.iter().all(|c| c.0 > 1.0)
+        || clip.iter().all(|c| c.1 < -1.0)
+        || clip.iter().all(|c| c.1 > 1.0))
 }
 
 pub struct Renderer {
@@ -54,7 +80,7 @@ pub struct Renderer {
     surface_config: Option<wgpu::SurfaceConfiguration>,
     // MSAA color target matching the surface size, recreated on resize
     msaa_texture: Option<wgpu::Texture>,
-    chunks: Vec<Chunk>,
+    batches: Vec<Batch>,
     max_texture_dim: u32,
     max_buffer_size: u64,
 }
@@ -243,7 +269,7 @@ impl Renderer {
             surface,
             surface_config,
             msaa_texture: None,
-            chunks: Vec::new(),
+            batches: Vec::new(),
             max_texture_dim,
             max_buffer_size,
         })
@@ -268,7 +294,9 @@ impl Renderer {
         bytes_per_row as u64 * height as u64
     }
 
-    pub fn upload_chunk(&mut self, vertices: &[u8], indices: &[u32]) {
+    /// Uploads a geometry batch. `key` is the ascending draw-order key and
+    /// `bounds` the world-space xy AABB used for viewport culling.
+    pub fn upload_batch(&mut self, key: i32, bounds: (f32, f32, f32, f32), vertices: &[u8], indices: &[u32]) {
         // Upload via write_buffer, not a mapped-at-creation buffer: on the
         // browser backends wgpu shadows every mapped range with a wasm-heap
         // copy of the whole buffer, which for large builds spikes wasm memory
@@ -295,17 +323,23 @@ impl Renderer {
         self.queue.write_buffer(&vertex_buffer, 0, vertices);
         self.queue.write_buffer(&index_buffer, 0, index_bytes);
 
-        self.chunks.push(Chunk {
+        // Batches arrive top layer first but draw bottom first: insert in
+        // key order, after any batch with an equal key so upload order is
+        // preserved within a layer
+        let at = self.batches.partition_point(|b| b.key <= key);
+        self.batches.insert(at, Batch {
+            key,
+            bounds,
             vertex_buffer,
             index_buffer,
             index_count: indices.len() as u32,
         });
     }
 
-    pub fn clear_chunks(&mut self) {
-        for chunk in self.chunks.drain(..) {
-            chunk.vertex_buffer.destroy();
-            chunk.index_buffer.destroy();
+    pub fn clear_batches(&mut self) {
+        for batch in self.batches.drain(..) {
+            batch.vertex_buffer.destroy();
+            batch.index_buffer.destroy();
         }
     }
 
@@ -379,10 +413,13 @@ impl Renderer {
 
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
-        for chunk in &self.chunks {
-            pass.set_vertex_buffer(0, chunk.vertex_buffer.slice(..));
-            pass.set_index_buffer(chunk.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            pass.draw_indexed(0..chunk.index_count, 0, 0..1);
+        for batch in &self.batches {
+            if !batch_visible(matrix, batch.bounds) {
+                continue;
+            }
+            pass.set_vertex_buffer(0, batch.vertex_buffer.slice(..));
+            pass.set_index_buffer(batch.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            pass.draw_indexed(0..batch.index_count, 0, 0..1);
         }
     }
 

@@ -118,6 +118,19 @@ pub fn calculate_bounds(bricks: &[Brick], (x, y): (i32, i32)) -> (i32, i32, i32,
     bounds
 }
 
+/// Absolute xy extent of the bricks' footprints.
+pub fn footprint_bounds(bricks: &[Brick]) -> (i32, i32, i32, i32) {
+    let mut bounds = (i32::MAX, i32::MAX, i32::MIN, i32::MIN);
+    for brick in bricks {
+        let size = sizer(brick);
+        bounds.0 = bounds.0.min(brick.position.0 - size.0 as i32);
+        bounds.1 = bounds.1.min(brick.position.1 - size.1 as i32);
+        bounds.2 = bounds.2.max(brick.position.0 + size.0 as i32);
+        bounds.3 = bounds.3.max(brick.position.1 + size.1 as i32);
+    }
+    bounds
+}
+
 pub fn top_surface(brick: &Brick) -> i32 {
     brick.position.2 + sizer(brick).2 as i32
 }

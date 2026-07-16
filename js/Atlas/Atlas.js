@@ -75,7 +75,10 @@ export default class Atlas {
                 <div class="map-button load-button svg-button" title="Load Build">${LOAD}</div>
                 <a class="github-button" href="https://github.com/Kmschr/BrickCartographer" target="_blank" rel="noopener noreferrer">${GITHUB}</a>
                 <input type="file" name="file" id="file" />
-                <div class="loading-overlay" style="display:none"><div class="loading-spinner"></div></div>
+                <div class="loading-overlay" style="display:none">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-progress"></div>
+                </div>
                 <div class="webgpu-notice" style="display:none">
                     <span class="webgpu-notice-text"></span>
                     <button class="webgpu-notice-dismiss" title="Dismiss">&times;</button>
@@ -86,6 +89,7 @@ export default class Atlas {
         this.canvas = $(".map-canvas");
         this.fileInput = $("#file");
         this.loadingOverlay = $(".loading-overlay");
+        this.loadingProgress = $(".loading-progress");
         this.webgpuNotice = $(".webgpu-notice");
         this.borderButton = $(".border-button");
         this.fillButton = $(".fill-button");
@@ -146,6 +150,11 @@ export default class Atlas {
     setLoading(loading) {
         this.loading = loading;
         this.loadingOverlay.style.display = loading ? "flex" : "none";
+        if (!loading) this.loadingProgress.textContent = "";
+    }
+
+    setLoadingProgress(progress) {
+        this.loadingProgress.textContent = progress < 1 ? `${Math.floor(progress * 100)}%` : "";
     }
 
     syncToggleButtons() {
@@ -221,14 +230,29 @@ export default class Atlas {
         this.withLoading(() =>
             fetch(ACM_City)
                 .then(res => res.arrayBuffer())
-                .then(buff => wasm.then(rust => rust.loadFile(new Uint8Array(buff))))
-                .then(save => {
-                    this.replaceSave(save);
-                    this.map = "ACM City";
-                    this.processSave(true);
-                })
+                .then(buff => this.openSave(new Uint8Array(buff), "ACM City"))
                 .catch(err => console.error(err))
         );
+    }
+
+    // Opens a save and streams its chunks in, repainting between steps so the
+    // map appears progressively while big files load
+    async openSave(bytes, name) {
+        const rust = await wasm;
+        const save = await rust.loadFile(bytes);
+        this.replaceSave(save);
+        this.map = name;
+        save.setViewMode(this.showOutlines, this.fillBricks, this.showHeightmap);
+        this.resetView();
+        this.canvas.style.cursor = null;
+
+        while (this.save === save) {
+            const progress = save.loadStep(40);
+            this.setLoadingProgress(progress);
+            this.redraw();
+            if (progress >= 1) break;
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
     }
 
     toggleFullscreen() {
@@ -364,27 +388,16 @@ export default class Atlas {
     loadFileWASM(file) {
         const filename = file.name.replace(/\.[^/.]+$/, "");
         return file.arrayBuffer()
-            .then(buff => wasm.then(rust => rust.loadFile(new Uint8Array(buff))))
-            .then(save => {
-                this.replaceSave(save);
-                this.map = filename;
-                this.processSave(true);
-            })
+            .then(buff => this.openSave(new Uint8Array(buff), filename))
             .catch(err => console.error(err));
     }
 
-    processSave(newSave) {
+    processSave() {
         try {
-            if (this.showHeightmap) {
-                this.save.buildHeightmapVertexBuffer();
-            } else {
-                this.save.buildVertexBuffer(this.showOutlines, this.fillBricks);
-            }
+            this.save.setViewMode(this.showOutlines, this.fillBricks, this.showHeightmap);
         } catch (err) {
             console.error(err);
         }
-        if (newSave) this.resetView();
-        this.canvas.style.cursor = null;
         this.redraw();
     }
 }

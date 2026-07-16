@@ -72,10 +72,7 @@ async fn render(save: &SaveData, args: &Args) -> Result<Vec<u8>, String> {
     } else {
         GeometryMode::Map { outlines: args.outlines, fills: !args.no_fill }
     };
-    let culled = save.build_geometry(mode, |vertices, indices| {
-        renderer.upload_chunk(vertices, indices);
-        Ok(())
-    })?;
+    let culled = save.build_geometry(mode, &mut renderer)?;
     eprintln!("Culled {} occluded bricks", culled);
 
     // Rotation happens about the centroid, so the axis-aligned bounds grow.
@@ -91,10 +88,11 @@ async fn render(save: &SaveData, args: &Args) -> Result<Vec<u8>, String> {
     let width = (half_w * 2.0 * args.scale).ceil() as u32 + args.margin * 2;
     let height = (half_h * 2.0 * args.scale).ceil() as u32 + args.margin * 2;
 
-    // The view is centered on the centroid, but the bounds are not centered on
-    // it in general — pan by the offset so the whole build lands in frame.
-    let pan_x = -((x1 + x2) as f32 / 2.0 - save.centroid.0 as f32);
-    let pan_y = -((y1 + y2) as f32 / 2.0 - save.centroid.1 as f32);
+    // Bounds are centroid-relative and the unpanned view centers on the
+    // centroid, so panning to the middle of the bounds is exactly their
+    // midpoint (no further centroid term — that double-counts it)
+    let pan_x = -((x1 + x2) as f32 / 2.0);
+    let pan_y = -((y1 + y2) as f32 / 2.0);
 
     // Anything past the device's max texture size is rendered as a grid of
     // tiles and stitched, so huge builds still produce one image
