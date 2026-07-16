@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::webgl::VERTEX_STRIDE;
+use crate::webgpu::VERTEX_STRIDE;
 
 // Appends a shape's triangle-list positions as indexed geometry, deduplicating
 // vertices within the shape by exact bit pattern. Vertices are interleaved as
@@ -18,10 +18,4 @@ pub fn push_shape(vertices: &mut Vec<u8>, indices: &mut Vec<u32>, positions: &[f
         });
         indices.push(index);
     }
-}
-
-#[derive(Debug)]
-pub struct Point {
-    pub x: f32,
-    pub y: f32,
 }

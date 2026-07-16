@@ -7,7 +7,7 @@ extern crate image;
 extern crate wasm_bindgen;
 extern crate console_error_panic_hook;
 
-mod webgl;
+mod webgpu;
 mod graphics;
 mod image_combiner;
 mod bricks;
@@ -32,9 +32,9 @@ extern "C" {
 }
 
 #[wasm_bindgen(js_name = loadFile)]
-pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
+pub async fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
     console_error_panic_hook::set_once();
-    BRSProcessor::load_file(body)
+    BRSProcessor::load_file(body).await
 }
 
 #[wasm_bindgen(js_name = getImageCombiner)]

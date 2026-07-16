@@ -17,23 +17,64 @@ wasm-opt = ['-Oz']
 brickadia = "0.1.26"
 brdb = { git = "https://github.com/brickadia-community/brdb.git", default-features = false, features = ["brz", "wasm"] }
 serde_json = "1.0"
-wasm-bindgen = "0.2.60"
-js-sys = "0.3.37"
+wasm-bindgen = "0.2.126"
+wasm-bindgen-futures = "0.4.58"
+js-sys = "0.3.103"
 chrono = { version = "0.4.9", features = ["wasmbind"] }
 image = { version = "0.23.4", default-features = false, features = ["png"] }
 console_error_panic_hook = "0.1.6"
 
+# Pinned exactly: the WebGPU bindings are unstable APIs, exempt from semver
 [dependencies.web-sys]
-version = "0.3.4"
+version = "=0.3.103"
 features = [
   'Document',
   'Element',
   'HtmlCanvasElement',
   'HtmlCollection',
-  'WebGlBuffer',
-  'WebGlRenderingContext',
-  'WebGlProgram',
-  'WebGlShader',
-  'WebGlUniformLocation',
+  'Navigator',
   'Window',
+  'Gpu',
+  'GpuAdapter',
+  'GpuAutoLayoutMode',
+  'GpuBindGroup',
+  'GpuBindGroupDescriptor',
+  'GpuBindGroupEntry',
+  'GpuBindGroupLayout',
+  'GpuBuffer',
+  'GpuBufferBinding',
+  'GpuBufferDescriptor',
+  'GpuCanvasAlphaMode',
+  'GpuCanvasConfiguration',
+  'GpuCanvasContext',
+  'GpuColorTargetState',
+  'GpuCommandBuffer',
+  'GpuCommandEncoder',
+  'GpuDevice',
+  'GpuFragmentState',
+  'GpuLoadOp',
+  'GpuMultisampleState',
+  'GpuQueue',
+  'GpuRenderPassColorAttachment',
+  'GpuRenderPassDescriptor',
+  'GpuRenderPassEncoder',
+  'GpuRenderPipeline',
+  'GpuRenderPipelineDescriptor',
+  'GpuShaderModule',
+  'GpuShaderModuleDescriptor',
+  'GpuStoreOp',
+  'GpuTexelCopyBufferInfo',
+  'GpuTexelCopyTextureInfo',
+  'GpuTexture',
+  'GpuTextureDescriptor',
+  'GpuTextureFormat',
+  'GpuTextureView',
+  'GpuVertexAttribute',
+  'GpuVertexBufferLayout',
+  'GpuVertexFormat',
+  'GpuVertexState',
+  'GpuIndexFormat',
+  'gpu_buffer_usage',
+  'gpu_map_mode',
+  'gpu_texture_usage',
 ]

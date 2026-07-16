@@ -185,7 +185,7 @@ export default class Atlas {
                 .then(res => res.arrayBuffer())
                 .then(buff => wasm.then(rust => rust.loadFile(new Uint8Array(buff))))
                 .then(save => {
-                    this.save = save;
+                    this.replaceSave(save);
                     this.map = "ACM City";
                     this.processSave(true);
                 })
@@ -204,65 +204,50 @@ export default class Atlas {
 
     takeScreenshot() {
         if (!this.save) return;
-        this.save.render(this.canvas.width, this.canvas.height, this.pan.x, this.pan.y, this.scale, this.rotation);
-        this.canvas.toBlob(blob => saveBlob(blob, `${this.map}.png`));
+        this.save.renderToPng(this.canvas.width, this.canvas.height, this.pan.x, this.pan.y, this.scale, this.rotation)
+            .then(png => saveBlob(new Blob([png.buffer], { type: "image/png" }), `${this.map}.png`))
+            .catch(err => console.error(err));
     }
 
-    // Render the whole build as a grid of viewport-sized PNG tiles and stitch
-    // them in wasm. The combiner holds the full RGBA buffer in wasm memory and
-    // encodes the PNG there, so the output isn't bounded by the browser's max
-    // 2d-canvas size — large builds (Orion's Freebuild etc.) would otherwise
-    // exceed it and produce no image at all.
-    takeHDScreenshot(zoom) {
+    // Render the whole build as a grid of viewport-sized tiles, offscreen, and
+    // stitch them in wasm. Tiles come back as raw RGBA and the combiner holds
+    // the full-size buffer in wasm memory and encodes the PNG there, so the
+    // output isn't bounded by the browser's max 2d-canvas size — large builds
+    // (Orion's Freebuild etc.) would otherwise exceed it and produce no image
+    // at all. Tiles render sequentially to bound peak memory.
+    async takeHDScreenshot(zoom) {
         if (!this.save) return;
 
-        const prevRotation = this.rotation;
-        const prevPan = this.pan;
-        const prevScale = this.scale;
-        this.rotation = DEFAULT_ROTATION;
-        this.scale = DEFAULT_SCALE * zoom;
-        this.imageCombiner.setSize(this.canvas.width, this.canvas.height);
+        const scale = DEFAULT_SCALE * zoom;
+        const tileWidth = this.canvas.width;
+        const tileHeight = this.canvas.height;
 
         const bounds = this.save.bounds();
-        const canvasWidth = this.canvas.width / this.scale;
-        const canvasHeight = this.canvas.height / this.scale;
-        bounds[0] += canvasWidth / 2;
-        bounds[1] += canvasHeight / 2;
+        const worldTileWidth = tileWidth / scale;
+        const worldTileHeight = tileHeight / scale;
+        bounds[0] += worldTileWidth / 2;
+        bounds[1] += worldTileHeight / 2;
         const imageWidth = bounds[2] - bounds[0];
         const imageHeight = bounds[3] - bounds[1];
-        const numCols = Math.max(1, Math.ceil(imageWidth / canvasWidth));
-        const numRows = Math.max(1, Math.ceil(imageHeight / canvasHeight));
-        const numImages = numRows * numCols;
-        let imageIndex = 0;
+        const numCols = Math.max(1, Math.ceil(imageWidth / worldTileWidth));
+        const numRows = Math.max(1, Math.ceil(imageHeight / worldTileHeight));
 
-        for (let col = 0; col < numCols; col++) {
-            for (let row = 0; row < numRows; row++) {
-                this.setPan(-bounds[0] - col * canvasWidth, -bounds[1] - row * canvasHeight);
-                this.save.render(this.canvas.width, this.canvas.height, this.pan.x, this.pan.y, this.scale, this.rotation);
-                this.canvas.toBlob(blob => {
-                    blob.arrayBuffer().then(buff => {
-                        this.imageCombiner.pushImage(new Uint8Array(buff), row * numCols + col);
-                        imageIndex++;
-                        if (imageIndex === numImages) {
-                            this.rotation = prevRotation;
-                            this.scale = prevScale;
-                            this.pan = prevPan;
-                            this.redraw();
-                            try {
-                                const buffer = this.imageCombiner.combineImages(numRows, numCols);
-                                saveBlob(new Blob([buffer.buffer]), `${this.map}.png`);
-                            } catch (err) {
-                                console.error(err);
-                            }
-                        }
-                    });
-                }, "image/png");
+        try {
+            this.imageCombiner.setLayout(tileWidth, tileHeight, numRows, numCols);
+            for (let col = 0; col < numCols; col++) {
+                for (let row = 0; row < numRows; row++) {
+                    const pixels = await this.save.renderToPixels(
+                        tileWidth, tileHeight,
+                        -bounds[0] - col * worldTileWidth, -bounds[1] - row * worldTileHeight,
+                        scale, DEFAULT_ROTATION);
+                    this.imageCombiner.pushPixels(pixels, row, col);
+                }
             }
+            const buffer = this.imageCombiner.combineImages();
+            saveBlob(new Blob([buffer.buffer], { type: "image/png" }), `${this.map}.png`);
+        } catch (err) {
+            console.error(err);
         }
-    }
-
-    setPan(x, y) {
-        this.pan = { x, y };
     }
 
     rotateCCW() {
@@ -322,6 +307,13 @@ export default class Atlas {
         this.redraw();
     }
 
+    // Frees the old save's GPU buffers and device promptly instead of
+    // waiting on wasm-bindgen's GC finalizer
+    replaceSave(save) {
+        if (this.save) this.save.free();
+        this.save = save;
+    }
+
     clickFileInput() {
         this.fileInput.click();
     }
@@ -336,7 +328,7 @@ export default class Atlas {
         return file.arrayBuffer()
             .then(buff => wasm.then(rust => rust.loadFile(new Uint8Array(buff))))
             .then(save => {
-                this.save = save;
+                this.replaceSave(save);
                 this.map = filename;
                 this.processSave(true);
             })

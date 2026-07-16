@@ -1,5 +1,5 @@
 use crate::log;
-use crate::webgl::*;
+use crate::webgpu::{BufferChunk, GpuContext};
 use crate::color::*;
 use crate::graphics::*;
 use crate::bricks::*;
@@ -8,11 +8,13 @@ use crate::*;
 
 use std::collections::HashSet;
 
-use web_sys::{WebGlBuffer, WebGlRenderingContext, WebGlUniformLocation};
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::future_to_promise;
+use web_sys::{gpu_buffer_usage, GpuBuffer};
 use brickadia::read::SaveReader;
 use brickadia::save::{Brick, Rotation, Direction, BrickColor};
+use image::png::PngEncoder;
 
 // Geometry is built and uploaded to the GPU in chunks so wasm memory stays
 // bounded no matter the build size. Also keeps every draw call well under
@@ -47,18 +49,9 @@ pub struct BrickShape {
     direction: Direction,
 }
 
-struct BufferChunk {
-    vertex_buffer: WebGlBuffer,
-    index_buffer: WebGlBuffer,
-    index_count: i32,
-}
-
 #[wasm_bindgen]
 pub struct BRSProcessor {
-    gl: WebGlRenderingContext,
-    matrix_uniform_location: WebGlUniformLocation,
-    position_attribute_location: u32,
-    color_attribute_location: u32,
+    ctx: GpuContext,
     centroid: (i32, i32),
     bounds: (i32, i32, i32, i32),
     vertex_buffer: Vec<u8>,
@@ -74,7 +67,7 @@ pub struct BRSProcessor {
 
 #[wasm_bindgen]
 impl BRSProcessor {
-    pub fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
+    pub async fn load_file(body: Vec<u8>) -> Result<BRSProcessor, JsValue> {
         let raw = if body.starts_with(b"BRZ") {
             crate::world_load::load_brz(&body)?
         } else if body.starts_with(b"SQLite format 3\0") {
@@ -97,7 +90,7 @@ impl BRSProcessor {
         let centroid = util::calculate_centroid(&bricks);
         let bounds = util::calculate_bounds(&bricks, centroid);
 
-        let (gl, matrix_uniform_location, position_attribute_location, color_attribute_location) = webgl::get_rendering_context()?;
+        let ctx = webgpu::get_rendering_context().await?;
 
         let mut processor = BRSProcessor {
             bricks,
@@ -106,10 +99,7 @@ impl BRSProcessor {
             description,
             brick_count,
             linear_colors,
-            gl,
-            matrix_uniform_location,
-            position_attribute_location,
-            color_attribute_location,
+            ctx,
             centroid,
             bounds,
             vertex_buffer: Vec::new(),
@@ -240,51 +230,40 @@ impl BRSProcessor {
     }
 
     pub fn render(&mut self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(), JsValue> {
-        let pan = Point { x: pan_x, y: pan_y};
-        let size = Point { x: size_x as f32, y: size_y as f32};
-
-        self.gl.viewport(0, 0, size.x as i32, size.y as i32);
-
-        self.gl.clear_color(0.0, 0.0, 0.0, 0.0);
-        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
-
-        let mut matrix = m3::projection(size.x, size.y);
-        matrix = m3::translate(matrix, size.x/2.0, size.y/2.0);
-        matrix = m3::scale(matrix, scale, scale);
-        matrix = m3::rotate(matrix, rotation);
-        matrix = m3::translate(matrix, pan.x - self.centroid.0 as f32, pan.y - self.centroid.1 as f32);
-
-        self.gl.uniform_matrix3fv_with_f32_array(Some(self.matrix_uniform_location.as_ref()), false, &matrix);
-
-        // Chunks hold exactly the visible bricks, in draw order
-        for chunk in &self.chunks {
-            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&chunk.vertex_buffer));
-            self.gl.vertex_attrib_pointer_with_i32(
-                self.position_attribute_location,
-                2, // Number of elements per attribute
-                WebGlRenderingContext::FLOAT,
-                false,
-                VERTEX_STRIDE, // Size of individual vertex
-                0 // Offset from beginning of a vertex to this attribute
-            );
-            self.gl.vertex_attrib_pointer_with_i32(
-                self.color_attribute_location,
-                4, // Number of elements per attribute
-                WebGlRenderingContext::UNSIGNED_BYTE,
-                true, // Normalize 0-255 to 0.0-1.0
-                VERTEX_STRIDE, // Size of individual vertex
-                2 * std::mem::size_of::<f32>() as i32 // Offset from beginning of a vertex to this attribute
-            );
-            self.gl.bind_buffer(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, Some(&chunk.index_buffer));
-            self.gl.draw_elements_with_i32(
-                WebGlRenderingContext::TRIANGLES,
-                chunk.index_count,
-                WebGlRenderingContext::UNSIGNED_INT,
-                0
-            );
+        if size_x <= 0 || size_y <= 0 {
+            return Ok(());
         }
+        let matrix = self.view_matrix(size_x as f32, size_y as f32, pan_x, pan_y, scale, rotation);
+        self.ctx.render_to_canvas(&matrix, &self.chunks)
+    }
 
-        Ok(())
+    // Renders offscreen at the given size and resolves to a Promise of
+    // tightly-packed RGBA pixels. Used for screenshot tiles.
+    #[wasm_bindgen(js_name = renderToPixels)]
+    pub fn render_to_pixels(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<js_sys::Promise, JsValue> {
+        let (buffer, bytes_per_row) = self.render_for_readback(size_x, size_y, pan_x, pan_y, scale, rotation)?;
+        let bgra = self.ctx.is_bgra();
+        let (width, height) = (size_x as u32, size_y as u32);
+        Ok(future_to_promise(async move {
+            let pixels = webgpu::read_pixels(buffer, width, height, bytes_per_row, bgra).await?;
+            Ok(js_sys::Uint8Array::from(pixels.as_slice()).into())
+        }))
+    }
+
+    // Like renderToPixels, but resolves to an encoded PNG
+    #[wasm_bindgen(js_name = renderToPng)]
+    pub fn render_to_png(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<js_sys::Promise, JsValue> {
+        let (buffer, bytes_per_row) = self.render_for_readback(size_x, size_y, pan_x, pan_y, scale, rotation)?;
+        let bgra = self.ctx.is_bgra();
+        let (width, height) = (size_x as u32, size_y as u32);
+        Ok(future_to_promise(async move {
+            let pixels = webgpu::read_pixels(buffer, width, height, bytes_per_row, bgra).await?;
+            let mut png: Vec<u8> = Vec::new();
+            PngEncoder::new(&mut png)
+                .encode(&pixels, width, height, image::ColorType::Rgba8)
+                .map_err(|_| JsValue::from("Error encoding to png"))?;
+            Ok(js_sys::Uint8Array::from(png.as_slice()).into())
+        }))
     }
 
 }
@@ -314,6 +293,23 @@ impl BRSProcessor {
             brick_count: save.header1.brick_count as i32,
             linear_colors: true,
         })
+    }
+
+    fn view_matrix(&self, size_x: f32, size_y: f32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> [f32; 9] {
+        let mut matrix = m3::projection(size_x, size_y);
+        matrix = m3::translate(matrix, size_x / 2.0, size_y / 2.0);
+        matrix = m3::scale(matrix, scale, scale);
+        matrix = m3::rotate(matrix, rotation);
+        matrix = m3::translate(matrix, pan_x - self.centroid.0 as f32, pan_y - self.centroid.1 as f32);
+        matrix
+    }
+
+    fn render_for_readback(&self, size_x: i32, size_y: i32, pan_x: f32, pan_y: f32, scale: f32, rotation: f32) -> Result<(GpuBuffer, u32), JsValue> {
+        if size_x <= 0 || size_y <= 0 {
+            return Err(JsValue::from("invalid render size"));
+        }
+        let matrix = self.view_matrix(size_x as f32, size_y as f32, pan_x, pan_y, scale, rotation);
+        self.ctx.render_for_readback(size_x as u32, size_y as u32, &matrix, &self.chunks)
     }
 
     fn height_extent(&self) -> (i32, i32) {
@@ -410,8 +406,8 @@ impl BRSProcessor {
 
     pub fn clear_vertex_buffer(&mut self) {
         for chunk in self.chunks.drain(..) {
-            self.gl.delete_buffer(Some(&chunk.vertex_buffer));
-            self.gl.delete_buffer(Some(&chunk.index_buffer));
+            chunk.vertex_buffer.destroy();
+            chunk.index_buffer.destroy();
         }
         self.vertex_buffer.clear();
         self.index_buffer.clear();
@@ -424,28 +420,18 @@ impl BRSProcessor {
             return Ok(());
         }
 
-        let vertex_buffer = self.gl.create_buffer().ok_or_else(|| JsValue::from("failed to create vertex buffer"))?;
-        let index_buffer = self.gl.create_buffer().ok_or_else(|| JsValue::from("failed to create index buffer"))?;
+        let vertex_buffer = self.ctx.create_static_buffer(&self.vertex_buffer, gpu_buffer_usage::VERTEX)?;
 
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
-        self.gl.bind_buffer(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, Some(&index_buffer));
-        unsafe {
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &js_sys::Uint8Array::view(&self.vertex_buffer),
-                WebGlRenderingContext::STATIC_DRAW
-            );
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ELEMENT_ARRAY_BUFFER,
-                &js_sys::Uint32Array::view(&self.index_buffer),
-                WebGlRenderingContext::STATIC_DRAW
-            );
-        }
+        // View the u32 indices as bytes in place (wasm is little-endian)
+        let index_bytes = unsafe {
+            std::slice::from_raw_parts(self.index_buffer.as_ptr() as *const u8, self.index_buffer.len() * 4)
+        };
+        let index_buffer = self.ctx.create_static_buffer(index_bytes, gpu_buffer_usage::INDEX)?;
 
         self.chunks.push(BufferChunk {
             vertex_buffer,
             index_buffer,
-            index_count: self.index_buffer.len() as i32,
+            index_count: self.index_buffer.len() as u32,
         });
         self.vertex_buffer.clear();
         self.index_buffer.clear();
@@ -478,4 +464,12 @@ impl BRSProcessor {
         log(&format!("Bricks Discarded: {}", copy_count));
     }
 
+}
+
+// Release GPU resources when the JS side frees (or GC-finalizes) the processor
+impl Drop for BRSProcessor {
+    fn drop(&mut self) {
+        self.clear_vertex_buffer();
+        self.ctx.destroy();
+    }
 }
