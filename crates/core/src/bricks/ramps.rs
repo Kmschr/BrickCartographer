@@ -1,4 +1,5 @@
-use brickadia::save::{Brick, Rotation, Direction};
+use brickadia::save::{Rotation, Direction};
+use crate::brick::Brick;
 use super::primitives::*;
 
 pub fn ramp(brick: &Brick, shape: &Shape) -> Vec<f32> {

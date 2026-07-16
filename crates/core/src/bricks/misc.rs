@@ -1,4 +1,5 @@
-use brickadia::save::{Brick, Direction, Rotation};
+use brickadia::save::{Direction, Rotation};
+use crate::brick::Brick;
 use super::primitives::*;
 
 pub fn corner(brick: &Brick, shape: &Shape) -> Vec<f32> {

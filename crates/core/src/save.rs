@@ -1,3 +1,4 @@
+use crate::brick::Brick;
 use crate::color::*;
 use crate::bricks::*;
 use crate::graphics::push_shape;
@@ -7,7 +8,7 @@ use crate::util;
 use std::collections::HashSet;
 
 use brickadia::read::SaveReader;
-use brickadia::save::{Brick, Rotation, Direction, BrickColor};
+use brickadia::save::{Rotation, Direction, BrickColor};
 
 // Geometry is built and handed off in chunks so memory stays bounded no
 // matter the build size. Also keeps every draw call well under browser
@@ -19,18 +20,13 @@ const CHUNK_INDEX_LIMIT: usize = 3_000_000;
 const CULL_CELL_SIZE: i32 = 5;
 const CULL_MAX_GRID_DIM: i32 = 4096;
 
-// A parsed save in legacy .brs terms, before filtering/transforming.
-// Bricks from newer formats are converted into this shape so the rest of
-// the pipeline (sizing, geometry, culling) stays format-agnostic.
+// A parsed save with bricks already converted to render-ready form, so the
+// rest of the pipeline (sorting, culling, geometry) stays format-agnostic.
 pub struct RawSave {
     pub bricks: Vec<Brick>,
     pub brick_assets: Vec<String>,
-    pub colors: Vec<Color>,
     pub description: String,
     pub brick_count: i32,
-    // Whether per-brick colors are stored linear and need converting to sRGB
-    // for display. Newer saves store them as sRGB already.
-    pub linear_colors: bool,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -52,10 +48,8 @@ pub enum GeometryMode {
 pub struct SaveData {
     bricks: Vec<Brick>,
     brick_assets: Vec<String>,
-    colors: Vec<Color>,
     pub description: String,
     pub brick_count: i32,
-    linear_colors: bool,
     pub centroid: (i32, i32),
     pub bounds: (i32, i32, i32, i32),
     /// Duplicate bricks dropped up front (same footprint stacked exactly)
@@ -73,12 +67,9 @@ impl SaveData {
             Self::load_brs(body)?
         };
 
-        let RawSave { bricks, brick_assets, colors, description, brick_count, linear_colors } = raw;
+        let RawSave { mut bricks, brick_assets, description, brick_count } = raw;
 
-        let mut bricks: Vec<Brick> = bricks.into_iter()
-            .filter_map(|b| util::filter_and_transform_brick(b, &brick_assets))
-            .collect();
-        bricks.sort_unstable_by_key(|b| util::top_surface(b));
+        bricks.sort_unstable_by_key(util::top_surface);
 
         if bricks.is_empty() {
             return Err("save contains no visible bricks".to_string());
@@ -90,10 +81,8 @@ impl SaveData {
         let mut save = SaveData {
             bricks,
             brick_assets,
-            colors,
             description,
             brick_count,
-            linear_colors,
             centroid,
             bounds,
             discarded: 0,
@@ -109,19 +98,32 @@ impl SaveData {
         let save = reader.read_all()
             .map_err(|_| "brickadia-rs error reading file".to_string())?;
 
-        // Get color list as rgba 0.0-1.0 f32
+        // Get color list as display-ready sRGB (brs stores linear values)
         let mut colors: Vec<Color> = save.header2.colors.iter().map(convert_color).collect();
         for color in &mut colors {
             color.convert_to_srgb();
         }
 
+        let brick_assets = save.header2.brick_assets;
+        let bricks = save.bricks.iter()
+            .filter_map(|brick| {
+                let color = match &brick.color {
+                    BrickColor::Index(color_index) => colors[*color_index as usize],
+                    BrickColor::Unique(color) => {
+                        let mut color = convert_color(color);
+                        color.convert_to_srgb();
+                        color
+                    }
+                };
+                util::slim_brick(brick, &brick_assets, color.to_bytes())
+            })
+            .collect();
+
         Ok(RawSave {
-            bricks: save.bricks,
-            brick_assets: save.header2.brick_assets,
-            colors,
+            bricks,
+            brick_assets,
             description: save.header1.description,
             brick_count: save.header1.brick_count as i32,
-            linear_colors: true,
         })
     }
 
@@ -145,17 +147,15 @@ impl SaveData {
         mode: GeometryMode,
         mut push_chunk: impl FnMut(&[u8], &[u32]) -> Result<(), String>,
     ) -> Result<usize, String> {
-        let included = self.visible_bricks();
-
         // Outline-only mode draws no fills, so nothing occludes anything
         let cull = match mode {
             GeometryMode::Map { fills, .. } => fills,
             GeometryMode::Heightmap => true,
         };
         let hidden = if cull {
-            self.cull_covered(&included)
+            self.cull_covered()
         } else {
-            vec![false; included.len()]
+            vec![false; self.bricks.len()]
         };
         let culled = hidden.iter().filter(|&&h| h).count();
 
@@ -167,18 +167,17 @@ impl SaveData {
         let mut vertex_buffer: Vec<u8> = Vec::new();
         let mut index_buffer: Vec<u32> = Vec::new();
 
-        for (k, &i) in included.iter().enumerate() {
-            if hidden[k] {
+        for (brick, &hide) in self.bricks.iter().zip(&hidden) {
+            if hide {
                 continue;
             }
-            let brick = &self.bricks[i];
             let name = &self.brick_assets[brick.asset_name_index as usize];
 
             match mode {
                 GeometryMode::Map { outlines, fills } => {
                     if fills {
                         let verts = calculate_brick_vertices(name, brick);
-                        push_shape(&mut vertex_buffer, &mut index_buffer, &verts, self.brick_color(brick).to_bytes());
+                        push_shape(&mut vertex_buffer, &mut index_buffer, &verts, brick.color);
                     }
                     if outlines {
                         let ol_verts = calculate_brick_outline_vertices(name, brick);
@@ -208,20 +207,6 @@ impl SaveData {
         Ok(culled)
     }
 
-    // Brick color as display-ready sRGB
-    fn brick_color(&self, brick: &Brick) -> Color {
-        match &brick.color {
-            BrickColor::Index(color_index) => self.colors[*color_index as usize],
-            BrickColor::Unique(color) => {
-                let mut brick_color = convert_color(color);
-                if self.linear_colors {
-                    brick_color.convert_to_srgb();
-                }
-                brick_color
-            }
-        }
-    }
-
     fn height_extent(&self) -> (i32, i32) {
         let mut min_height = i32::MAX;
         let mut max_height = i32::MIN;
@@ -235,21 +220,13 @@ impl SaveData {
         (min_height, max_height)
     }
 
-    // Indices of visible bricks in draw order (bricks are pre-sorted by top surface)
-    fn visible_bricks(&self) -> Vec<usize> {
-        self.bricks.iter().enumerate()
-            .filter(|(_, brick)| brick.visibility)
-            .map(|(i, _)| i)
-            .collect()
-    }
-
     // Occlusion culling: walking bricks top-down, a brick is hidden if every
     // coverage-grid cell its footprint touches was fully covered by the
     // rectangular fills of bricks drawn above it. Conservative on both sides —
     // shaped bricks never cover, and partial cells never count as covered.
-    fn cull_covered(&self, included: &[usize]) -> Vec<bool> {
-        let mut hidden = vec![false; included.len()];
-        if included.is_empty() {
+    fn cull_covered(&self) -> Vec<bool> {
+        let mut hidden = vec![false; self.bricks.len()];
+        if self.bricks.is_empty() {
             return hidden;
         }
 
@@ -257,8 +234,7 @@ impl SaveData {
         let mut min_y = i32::MAX;
         let mut max_x = i32::MIN;
         let mut max_y = i32::MIN;
-        for &i in included {
-            let brick = &self.bricks[i];
+        for brick in &self.bricks {
             let size = util::sizer(brick);
             min_x = std::cmp::min(min_x, brick.position.0 - size.0 as i32);
             min_y = std::cmp::min(min_y, brick.position.1 - size.1 as i32);
@@ -272,8 +248,8 @@ impl SaveData {
         let rows = ((max_y - min_y) / cell + 1) as usize;
         let mut covered = vec![false; cols * rows];
 
-        for k in (0..included.len()).rev() {
-            let brick = &self.bricks[included[k]];
+        for k in (0..self.bricks.len()).rev() {
+            let brick = &self.bricks[k];
             let size = util::sizer(brick);
             let x1 = brick.position.0 - size.0 as i32 - min_x;
             let y1 = brick.position.1 - size.1 as i32 - min_y;
@@ -311,28 +287,26 @@ impl SaveData {
         hidden
     }
 
-    // Don't render bricks that are obviously hidden (same sized bricks
-    // stacked exactly on top of each other)
+    // Drop bricks that are obviously hidden (same sized bricks stacked
+    // exactly on top of each other). Walked top-down so the topmost copy —
+    // the one that would be drawn last — is the survivor.
     fn discard_hidden_bricks(&mut self) {
         let mut unique_shapes = HashSet::<BrickShape>::new();
-        let mut copy_count = 0;
+        let mut keep = vec![true; self.bricks.len()];
         for i in (0..self.bricks.len()).rev() {
-            let size = util::sizer(&self.bricks[i]);
+            let brick = &self.bricks[i];
             let brick_shape = BrickShape {
-                name_index: self.bricks[i].asset_name_index,
-                position: (self.bricks[i].position.0, self.bricks[i].position.1),
-                size: (size.0, size.1),
-                rotation: self.bricks[i].rotation.clone(),
-                direction: self.bricks[i].direction.clone()
+                name_index: brick.asset_name_index,
+                position: (brick.position.0, brick.position.1),
+                size: (brick.size.0 as u32, brick.size.1 as u32),
+                rotation: brick.rotation.clone(),
+                direction: brick.direction.clone()
             };
-
-            if unique_shapes.contains(&brick_shape) {
-                self.bricks[i].visibility = false;
-                copy_count += 1;
-            } else {
-                unique_shapes.insert(brick_shape);
-            }
+            keep[i] = unique_shapes.insert(brick_shape);
         }
-        self.discarded = copy_count;
+
+        let mut it = keep.iter();
+        self.bricks.retain(|_| *it.next().unwrap());
+        self.discarded = keep.len() - self.bricks.len();
     }
 }

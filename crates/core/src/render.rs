@@ -1,5 +1,3 @@
-use wgpu::util::DeviceExt;
-
 use crate::graphics::VERTEX_STRIDE;
 
 // Matches the old WebGL default of antialias: true (typically 4x MSAA)
@@ -124,13 +122,24 @@ impl Renderer {
                     .copied()
                     .find(|f| !f.is_srgb())
                     .unwrap_or(caps.formats[0]);
-                let alpha_mode = [
-                    wgpu::CompositeAlphaMode::PreMultiplied,
-                    wgpu::CompositeAlphaMode::PostMultiplied,
-                ]
-                .into_iter()
-                .find(|m| caps.alpha_modes.contains(m))
-                .unwrap_or(caps.alpha_modes[0]);
+                // Transparent pixels must composite over the page background.
+                // The browser-WebGPU backend only *advertises* Opaque but
+                // accepts and honors PreMultiplied — trusting its capability
+                // list paints the canvas black. The WebGL backend is the
+                // reverse: it only accepts what it advertises (just Opaque,
+                // an upstream TODO), but its canvas context has alpha enabled
+                // and presents premultiplied regardless, so Auto works out.
+                let alpha_mode = if adapter.get_info().backend == wgpu::Backend::BrowserWebGpu {
+                    wgpu::CompositeAlphaMode::PreMultiplied
+                } else {
+                    [
+                        wgpu::CompositeAlphaMode::PreMultiplied,
+                        wgpu::CompositeAlphaMode::PostMultiplied,
+                    ]
+                    .into_iter()
+                    .find(|m| caps.alpha_modes.contains(m))
+                    .unwrap_or(wgpu::CompositeAlphaMode::Auto)
+                };
 
                 let config = wgpu::SurfaceConfiguration {
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -260,25 +269,32 @@ impl Renderer {
     }
 
     pub fn upload_chunk(&mut self, vertices: &[u8], indices: &[u32]) {
-        let vertex_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: vertices,
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-        // View the u32 indices as bytes in place (all supported targets are
-        // little-endian)
+        // Upload via write_buffer, not a mapped-at-creation buffer: on the
+        // browser backends wgpu shadows every mapped range with a wasm-heap
+        // copy of the whole buffer, which for large builds spikes wasm memory
+        // by the chunk size per upload. write_buffer hands the browser the
+        // wasm slice directly with no allocation. Both slices are already
+        // 4-byte-sized (stride 12 / u32), as writeBuffer requires.
+        //
+        // The u32 indices are viewed as bytes in place (all supported targets
+        // are little-endian).
         let index_bytes = unsafe {
             std::slice::from_raw_parts(indices.as_ptr() as *const u8, indices.len() * 4)
         };
-        let index_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+
+        let create = |size: usize, usage: wgpu::BufferUsages| {
+            self.device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
-                contents: index_bytes,
-                usage: wgpu::BufferUsages::INDEX,
-            });
+                size: size as u64,
+                usage: usage | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })
+        };
+        let vertex_buffer = create(vertices.len(), wgpu::BufferUsages::VERTEX);
+        let index_buffer = create(index_bytes.len(), wgpu::BufferUsages::INDEX);
+        self.queue.write_buffer(&vertex_buffer, 0, vertices);
+        self.queue.write_buffer(&index_buffer, 0, index_bytes);
+
         self.chunks.push(Chunk {
             vertex_buffer,
             index_buffer,

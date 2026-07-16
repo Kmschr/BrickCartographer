@@ -1,4 +1,4 @@
-use brickadia::save::{Brick, Size};
+use crate::brick::Brick;
 
 pub const STUD_WIDTH: f32 = 10.0;
 
@@ -39,10 +39,7 @@ impl Shape {
 
 impl From<&Brick> for Shape {
     fn from(brick: &Brick) -> Self {
-        let size = match brick.size {
-            Size::Procedural(x, y, z) => (x, y, z),
-            Size::Empty => (0, 0, 0),
-        };
+        let size = brick.size_u32();
 
         Shape {
             x1: (brick.position.0 - size.0 as i32) as f32,

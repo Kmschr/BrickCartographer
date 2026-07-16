@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use brickadia::save::{Brick, BrickColor, Color, Direction, Rotation, Size};
+use brickadia::save::{Direction, Rotation};
 use brdb::{Brdb, BrFsReader, BrReader, BrickType, Brz, IntoReader};
 
+use crate::brick::Brick;
 use crate::save::RawSave;
+use crate::util;
 
 const MAIN_GRID: usize = 1;
 
@@ -35,6 +37,7 @@ fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, String> {
     let mut brick_assets: Vec<String> = Vec::new();
     let mut asset_indices: HashMap<String, u32> = HashMap::new();
     let mut bricks: Vec<Brick> = Vec::new();
+    let mut brick_count: i32 = 0;
 
     // Dynamic brick grids (vehicles etc.) are positioned by entity transforms
     // the renderer doesn't model, so only the main grid is mapped
@@ -49,6 +52,11 @@ fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, String> {
             let brick = brick
                 .map_err(|e| format!("brdb error reading brick in chunk {}: {}", chunk.index, e))?;
 
+            brick_count += 1;
+            if !brick.visible {
+                continue;
+            }
+
             let name = brick.asset.asset().to_string();
             let next_index = brick_assets.len() as u32;
             let asset_name_index = *asset_indices.entry(name).or_insert_with_key(|name| {
@@ -56,39 +64,44 @@ fn load_world<T: BrFsReader>(reader: &BrReader<T>) -> Result<RawSave, String> {
                 next_index
             });
 
-            let size = match brick.asset {
-                BrickType::Procedural { size, .. } =>
-                    Size::Procedural(size.x as u32, size.y as u32, size.z as u32),
-                BrickType::Basic(_) => Size::Empty,
+            let procedural_size = match brick.asset {
+                BrickType::Procedural { size, .. } => (size.x as u32, size.y as u32, size.z as u32),
+                BrickType::Basic(_) => (0, 0, 0),
             };
 
+            let mut color = crate::color::Color {
+                r: brick.color.r as f32 / 255.0,
+                g: brick.color.g as f32 / 255.0,
+                b: brick.color.b as f32 / 255.0,
+                a: 1.0,
+            };
+            if linear_colors {
+                color.convert_to_srgb();
+            }
+
+            let rotation = convert_rotation(brick.rotation);
+            let direction = convert_direction(brick.direction);
             bricks.push(Brick {
-                asset_name_index,
-                size,
                 position: (brick.position.x, brick.position.y, brick.position.z),
-                direction: convert_direction(brick.direction),
-                rotation: convert_rotation(brick.rotation),
-                visibility: brick.visible,
-                color: BrickColor::Unique(Color {
-                    r: brick.color.r,
-                    g: brick.color.g,
-                    b: brick.color.b,
-                    a: 255,
-                }),
-                ..Default::default()
+                size: util::transform_size(
+                    &brick_assets[asset_name_index as usize],
+                    procedural_size,
+                    rotation.clone(),
+                    direction.clone(),
+                ),
+                asset_name_index,
+                color: color.to_bytes(),
+                rotation,
+                direction,
             });
         }
     }
 
-    let brick_count = bricks.len() as i32;
-
     Ok(RawSave {
         bricks,
         brick_assets,
-        colors: Vec::new(),
         description: bundle.map(|b| b.description).unwrap_or_default(),
         brick_count,
-        linear_colors,
     })
 }
 

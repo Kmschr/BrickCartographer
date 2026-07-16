@@ -1,24 +1,16 @@
-use brickadia::save::{Brick, Rotation, Direction, Size};
+use brickadia::save::{Direction, Rotation, Size};
+
+use crate::brick::Brick;
 
 const STUD_WIDTH: u32 = 10;
 const STUD_HEIGHT: u32 = 12;
 const PLATE_HEIGHT: u32 = 4;
 
-pub fn filter_and_transform_brick(brick: Brick, brick_assets: &[String]) -> Option<Brick> {
-    if !brick.visibility {
-        return None;
-    }
-    let brick = transform_brick(brick, brick_assets);
-    Some(brick)
-}
-
-pub fn transform_brick(original_brick: Brick, brick_assets: &[String]) -> Brick {
-    let mut brick = original_brick;
-
-    let name = &brick_assets[brick.asset_name_index as usize];
-
+/// Footprint size of a brick after accounting for its asset's fixed size and
+/// its rotation/direction, ready to render top-down.
+pub fn transform_size(name: &str, procedural_size: (u32, u32, u32), rotation: Rotation, direction: Direction) -> (u16, u16, u16) {
     // Give size to non procedural bricks
-    let mut size = match name.as_str() {
+    let mut size = match name {
         "B_2x2_Corner" => (STUD_WIDTH, STUD_WIDTH, STUD_HEIGHT / 2),
         "B_2x_Cube_Side" => (STUD_WIDTH, STUD_WIDTH, STUD_HEIGHT),
         "B_1x1_Brick_Side" => (STUD_WIDTH / 2, STUD_WIDTH / 2, STUD_HEIGHT / 2),
@@ -32,26 +24,49 @@ pub fn transform_brick(original_brick: Brick, brick_assets: &[String]) -> Brick 
         "B_2x2F_Round" => (STUD_WIDTH, STUD_WIDTH, PLATE_HEIGHT / 2),
         "B_2x2_Round" => (STUD_WIDTH, STUD_WIDTH, STUD_HEIGHT / 2),
         "B_4x4_Round" => (STUD_WIDTH * 2, STUD_WIDTH * 2, STUD_HEIGHT / 2),
-        _ => sizer(&brick)
+        _ => procedural_size,
     };
 
     // Apply Rotation
-    if brick.rotation == Rotation::Deg90 || brick.rotation == Rotation::Deg270 {
+    if rotation == Rotation::Deg90 || rotation == Rotation::Deg270 {
         std::mem::swap(&mut size.0, &mut size.1);
     }
 
     // Apply Direction
-    if brick.direction == Direction::XPositive || brick.direction == Direction::XNegative {
+    if direction == Direction::XPositive || direction == Direction::XNegative {
         std::mem::swap(&mut size.0, &mut size.2);
     }
-    else if brick.direction == Direction::YPositive || brick.direction == Direction::YNegative {
+    else if direction == Direction::YPositive || direction == Direction::YNegative {
         std::mem::swap(&mut size.0, &mut size.1);
         std::mem::swap(&mut size.1, &mut size.2);
     }
 
-    brick.size = Size::Procedural(size.0, size.1, size.2);
+    (
+        size.0.min(u16::MAX as u32) as u16,
+        size.1.min(u16::MAX as u32) as u16,
+        size.2.min(u16::MAX as u32) as u16,
+    )
+}
 
-    brick
+/// Converts a parsed legacy-format brick into a render-ready one, dropping
+/// invisible bricks. `color` is the already-resolved display color.
+pub fn slim_brick(brick: &brickadia::save::Brick, brick_assets: &[String], color: [u8; 4]) -> Option<Brick> {
+    if !brick.visibility {
+        return None;
+    }
+    let name = &brick_assets[brick.asset_name_index as usize];
+    let procedural_size = match brick.size {
+        Size::Empty => (0, 0, 0),
+        Size::Procedural(x, y, z) => (x, y, z),
+    };
+    Some(Brick {
+        position: brick.position,
+        size: transform_size(name, procedural_size, brick.rotation.clone(), brick.direction.clone()),
+        asset_name_index: brick.asset_name_index,
+        color,
+        rotation: brick.rotation.clone(),
+        direction: brick.direction.clone(),
+    })
 }
 
 pub fn calculate_centroid(bricks: &[Brick]) -> (i32, i32) {
@@ -108,8 +123,5 @@ pub fn top_surface(brick: &Brick) -> i32 {
 }
 
 pub fn sizer(brick: &Brick) -> (u32, u32, u32) {
-    match brick.size {
-        Size::Empty => (0, 0, 0),
-        Size::Procedural(x, y, z) => (x, y, z)
-    }
+    brick.size_u32()
 }

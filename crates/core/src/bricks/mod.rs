@@ -12,7 +12,7 @@ pub use self::crests::*;
 pub use self::ramps::*;
 pub use self::misc::*;
 
-use brickadia::save::Brick;
+use crate::brick::Brick;
 
 // Single source of truth for brick-name → shape classification. Vertex, outline
 // and occlusion logic all switch on this so a new brick is declared in one place.

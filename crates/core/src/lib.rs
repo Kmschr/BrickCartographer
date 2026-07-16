@@ -1,3 +1,4 @@
+pub mod brick;
 pub mod bricks;
 pub mod color;
 pub mod graphics;
